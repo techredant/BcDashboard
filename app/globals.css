@@ -1,0 +1,306 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 222 60% 18%;
+    --primary-foreground: 45 100% 94%;
+
+    --secondary: 220 16% 93%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 16% 93%;
+    --muted-foreground: 220 10% 46%;
+
+    --accent: 42 92% 55%;
+    --accent-foreground: 222 60% 12%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 60% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 60% 12%;
+
+    --info: 210 100% 52%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 16% 90%;
+    --input: 220 16% 90%;
+    --ring: 222 60% 18%;
+
+    --radius: 0.625rem;
+
+    --sidebar-background: 222 60% 12%;
+    --sidebar-foreground: 220 20% 85%;
+    --sidebar-primary: 42 92% 55%;
+    --sidebar-primary-foreground: 222 60% 12%;
+    --sidebar-accent: 222 50% 18%;
+    --sidebar-accent-foreground: 220 20% 95%;
+    --sidebar-border: 222 40% 20%;
+    --sidebar-ring: 42 92% 55%;
+    --sidebar-muted: 222 30% 25%;
+
+    --chart-1: 222 60% 18%;
+    --chart-2: 42 92% 55%;
+    --chart-3: 152 60% 42%;
+    --chart-4: 210 100% 52%;
+    --chart-5: 0 72% 51%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(222 60% 18%), hsl(222 60% 28%));
+    --gradient-accent: linear-gradient(135deg, hsl(42 92% 55%), hsl(38 92% 50%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(220 20% 97%));
+    --shadow-card: 0 1px 3px 0 hsl(222 60% 18% / 0.06), 0 1px 2px -1px hsl(222 60% 18% / 0.06);
+    --shadow-elevated: 0 10px 25px -5px hsl(222 60% 18% / 0.1), 0 8px 10px -6px hsl(222 60% 18% / 0.08);
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 220 20% 95%;
+    --card: 222 47% 9%;
+    --card-foreground: 220 20% 95%;
+    --popover: 222 47% 9%;
+    --popover-foreground: 220 20% 95%;
+    --primary: 42 92% 55%;
+    --primary-foreground: 222 60% 12%;
+    --secondary: 222 30% 16%;
+    --secondary-foreground: 220 20% 95%;
+    --muted: 222 30% 16%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 42 92% 55%;
+    --accent-foreground: 222 60% 12%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 30% 18%;
+    --input: 222 30% 18%;
+    --ring: 42 92% 55%;
+    --sidebar-background: 222 60% 8%;
+    --sidebar-foreground: 220 20% 85%;
+    --sidebar-primary: 42 92% 55%;
+    --sidebar-primary-foreground: 222 60% 12%;
+    --sidebar-accent: 222 50% 14%;
+    --sidebar-accent-foreground: 220 20% 95%;
+    --sidebar-border: 222 40% 14%;
+    --sidebar-ring: 42 92% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .stat-card {
+    @apply bg-card rounded-xl border p-5 transition-all duration-200 hover:shadow-lg;
+    box-shadow: var(--shadow-card);
+  }
+
+  .stat-card:hover {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .badge-national {
+    @apply bg-primary text-primary-foreground text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+
+  .badge-county {
+    @apply bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+
+  .badge-constituency {
+    background-color: hsl(var(--info));
+    color: hsl(var(--info-foreground));
+    @apply text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+
+  .badge-ward {
+    background-color: hsl(var(--success));
+    color: hsl(var(--success-foreground));
+    @apply text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+
+  .badge-verified {
+    background-color: hsl(var(--success));
+    color: hsl(var(--success-foreground));
+    @apply text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+
+  .badge-pending {
+    background-color: hsl(var(--warning));
+    color: hsl(var(--warning-foreground));
+    @apply text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+
+  .badge-unverified {
+    @apply text-xs font-medium px-2.5 py-0.5 rounded-full;
+    background-color: hsl(var(--destructive));
+    color: hsl(var(--destructive-foreground));
+  }
+
+  .page-header {
+    @apply mb-8;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold tracking-tight;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+
+  .page-description {
+    @apply text-muted-foreground mt-1;
+  }
+
+  .dashboard-shell {
+    @apply bg-background;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, hsl(var(--primary) / 0.08), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 0%, hsl(var(--accent) / 0.06), transparent);
+  }
+
+  .dashboard-header {
+    @apply border-b bg-card/80 backdrop-blur-md supports-[backdrop-filter]:bg-card/60;
+  }
+
+  .dashboard-main {
+    @apply bg-transparent;
+  }
+
+  .dashboard-sidebar {
+    @apply shadow-xl shadow-black/5;
+  }
+
+  .sidebar-nav-item {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground;
+  }
+
+  .sidebar-nav-item-active {
+    @apply bg-sidebar-accent text-sidebar-primary shadow-sm;
+  }
+
+  .admin-avatar {
+    @apply flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground ring-2 ring-primary/20;
+  }
+
+  .chart-card {
+    @apply rounded-xl border bg-card p-5 shadow-sm;
+    box-shadow: var(--shadow-card);
+  }
+
+  .chart-card-header {
+    @apply mb-4 flex items-start justify-between gap-3;
+  }
+
+  .chart-card-title {
+    @apply text-sm font-semibold font-display;
+  }
+
+  .search-input {
+    @apply flex flex-1 max-w-md items-center gap-2 rounded-lg border bg-card px-3 py-2 shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-ring/30;
+  }
+
+  .search-input-field {
+    @apply flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground;
+  }
+
+  .level-tabs {
+    @apply inline-flex flex-wrap gap-1 rounded-lg border bg-card p-1;
+  }
+
+  .level-tab {
+    @apply inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium capitalize text-muted-foreground transition-colors hover:text-foreground;
+  }
+
+  .level-tab-active {
+    @apply bg-primary text-primary-foreground shadow-sm;
+  }
+
+  .data-table-wrap {
+    @apply overflow-hidden rounded-xl border bg-card shadow-sm;
+  }
+
+  .data-table {
+    @apply w-full text-sm;
+  }
+
+  .data-table thead tr {
+    @apply border-b bg-muted/40;
+  }
+
+  .data-table th {
+    @apply px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground;
+  }
+
+  .data-table td {
+    @apply px-5 py-3;
+  }
+
+  .data-table tbody tr {
+    @apply border-b transition-colors last:border-0 hover:bg-muted/30;
+  }
+
+  .empty-state {
+    @apply rounded-xl border border-dashed bg-muted/20 px-6 py-12 text-center;
+  }
+
+  .empty-state-icon {
+    @apply mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted;
+  }
+
+  .filter-pills {
+    @apply inline-flex gap-1 rounded-lg border bg-card p-1;
+  }
+
+  .filter-pill {
+    @apply rounded-md px-3 py-1.5 text-xs font-medium capitalize text-muted-foreground transition-colors hover:text-foreground;
+  }
+
+  .filter-pill-active {
+    @apply bg-primary text-primary-foreground shadow-sm;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fade-in 0.35s ease-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .font-display {
+    font-family: "Space Grotesk", system-ui, sans-serif;
+  }
+}
