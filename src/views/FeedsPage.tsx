@@ -11,13 +11,18 @@ import {
   MapPin,
   Play,
 } from "lucide-react";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, ADMIN_API_KEY, adminHeaders } from "@/lib/api";
 import { PageHeader } from "@/components/PageHeader";
 import { PageLoading } from "@/components/PageLoading";
 import { SearchInput } from "@/components/SearchInput";
 import { LevelTabs } from "@/components/LevelTabs";
 import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  ReportDetailDialog,
+  type ModerationReport,
+} from "@/views/ReportDetailDialog";
 import {
   Dialog,
   DialogContent,
@@ -46,11 +51,7 @@ type Post = {
   user?: { name?: string; email?: string };
 };
 
-type Report = {
-  _id: string;
-  reason: string;
-  post: Post;
-};
+type Report = ModerationReport;
 
 type KenyaRegion = {
   name: string;
@@ -147,6 +148,10 @@ export default function FeedsPage() {
   const [countries, setCountries] = useState<{ country: string; count: number }[]>([]);
   const [kenyaRegions, setKenyaRegions] = useState<KenyaRegion[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [reportStatusFilter, setReportStatusFilter] = useState("all");
+  const [deletedAccountsOnly, setDeletedAccountsOnly] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [reportsError, setReportsError] = useState("");
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState("all");
   const [level, setLevel] = useState("all");
@@ -180,20 +185,37 @@ export default function FeedsPage() {
 
   const fetchReports = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/reports`);
+      setReportsError("");
+      const res = await axios.get(`${API_BASE_URL}/api/reports`, {
+        headers: adminHeaders,
+        params: {
+          limit: 50,
+          status: reportStatusFilter === "all" ? undefined : reportStatusFilter,
+          accountDeleted: deletedAccountsOnly ? "true" : undefined,
+        },
+      });
       setReports(res.data.reports || []);
-    } catch {
+    } catch (err: any) {
       setReports([]);
+      setReportsError(
+        err?.response?.status === 401
+          ? "Set NEXT_PUBLIC_ADMIN_API_KEY to load reports."
+          : "Could not load reports.",
+      );
     }
-  }, []);
+  }, [reportStatusFilter, deletedAccountsOnly]);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await Promise.all([fetchPosts(), fetchReports()]);
+      await fetchPosts();
       setLoading(false);
     })();
-  }, [fetchPosts, fetchReports]);
+  }, [fetchPosts]);
+
+  useEffect(() => {
+    void fetchReports();
+  }, [fetchReports]);
 
   const countryPosts = useMemo(() => {
     if (countryFilter === "all") return posts;
@@ -304,18 +326,22 @@ export default function FeedsPage() {
   ]);
 
   const filteredReports = useMemo(() => {
+    const q = search.toLowerCase();
     return reports.filter((r) => {
-      const post = r.post;
-      if (!post) return false;
-      const matchCountry =
-        countryFilter === "all" || post.country === countryFilter;
-      const q = search.toLowerCase();
-      const matchSearch =
-        (post.content || "").toLowerCase().includes(q) ||
-        (r.reason || "").toLowerCase().includes(q);
-      return matchCountry && matchSearch;
+      const snapName = `${r.reportedUserSnapshot?.displayName || ""} ${r.reportedUserSnapshot?.username || ""}`.toLowerCase();
+      const currentName = `${r.currentReportedUser?.displayName || ""} ${r.currentReportedUser?.username || ""}`.toLowerCase();
+      const content = (r.postSnapshot?.content || r.post?.content || "").toLowerCase();
+      return (
+        !q ||
+        content.includes(q) ||
+        (r.reason || "").toLowerCase().includes(q) ||
+        snapName.includes(q) ||
+        currentName.includes(q) ||
+        (r.reportedUserId || "").toLowerCase().includes(q) ||
+        (r.postId || "").toLowerCase().includes(q)
+      );
     });
-  }, [reports, countryFilter, search]);
+  }, [reports, search]);
 
   const showDepartmentFilters = level !== "national" && level !== "all";
 
@@ -390,6 +416,33 @@ export default function FeedsPage() {
           ))}
         </div>
       </div>
+
+      {tab === "reports" && (
+        <div className="flex flex-wrap items-center gap-2">
+          {["all", "pending", "opened", "reviewing", "dismissed", "resolved"].map((status) => (
+            <button
+              key={status}
+              type="button"
+              onClick={() => setReportStatusFilter(status)}
+              className={`filter-pill ${reportStatusFilter === status ? "filter-pill-active" : ""}`}
+            >
+              {status}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setDeletedAccountsOnly((value) => !value)}
+            className={`filter-pill ${deletedAccountsOnly ? "filter-pill-active" : ""}`}
+          >
+            Deleted accounts
+          </button>
+          {!ADMIN_API_KEY ? (
+            <span className="text-xs text-destructive">
+              Set NEXT_PUBLIC_ADMIN_API_KEY to match ADMIN_API_KEY
+            </span>
+          ) : null}
+        </div>
+      )}
 
       {tab === "all" && (
         <>
@@ -546,6 +599,12 @@ export default function FeedsPage() {
               </tbody>
             </table>
           )
+        ) : reportsError ? (
+          <EmptyState
+            icon={<ShieldAlert className="h-5 w-5 text-destructive" />}
+            title="Reports unavailable"
+            subtitle={reportsError}
+          />
         ) : filteredReports.length === 0 ? (
           <EmptyState
             icon={<ShieldAlert className="h-5 w-5 text-destructive" />}
@@ -556,30 +615,91 @@ export default function FeedsPage() {
           <table className="data-table">
             <thead>
               <tr>
+                <th>Reported identity</th>
+                <th>Current identity</th>
                 <th>Post</th>
-                <th>Country</th>
                 <th>Reason</th>
-                <th className="text-right">Status</th>
+                <th>Status</th>
+                <th className="text-right">Open</th>
               </tr>
             </thead>
             <tbody>
               {filteredReports.map((r) => (
-                <tr key={r._id}>
-                  <td className="max-w-lg">
-                    <p className="line-clamp-2 font-medium">{r.post?.content}</p>
-                    <PostMedia
-                      media={r.post?.media || []}
-                      onOpen={(index) =>
-                        setPreview({ media: r.post?.media || [], index })
-                      }
-                    />
+                <tr key={r.reportId || r._id}>
+                  <td className="text-sm">
+                    <p className="font-medium">
+                      {r.reportedUserSnapshot?.displayName || "Unknown"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.reportedUserSnapshot?.username || "—"}
+                    </p>
                   </td>
-                  <td className="text-sm">{r.post?.country || "Unknown"}</td>
+                  <td className="text-sm">
+                    {r.accountDeleted ? (
+                      <span className="text-destructive">Account unavailable</span>
+                    ) : (
+                      <>
+                        <p className="font-medium">
+                          {r.currentReportedUser?.displayName || "Unknown"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {r.currentReportedUser?.username || "—"}
+                        </p>
+                      </>
+                    )}
+                  </td>
+                  <td className="max-w-sm">
+                    <p className="line-clamp-2 font-medium">
+                      {r.postSnapshot?.content || r.post?.content || "—"}
+                    </p>
+                    {r.currentPost?.status === "deleted" ? (
+                      <p className="text-xs text-destructive">Post status: Deleted</p>
+                    ) : null}
+                  </td>
                   <td>
-                    <span className="text-sm text-destructive">{r.reason}</span>
+                    <span className="text-sm capitalize text-destructive">{r.reason}</span>
+                  </td>
+                  <td>
+                    <Badge variant="outline" className="capitalize">
+                      {r.status}
+                    </Badge>
                   </td>
                   <td className="text-right">
-                    <Badge variant="outline">Pending review</Badge>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          const res = await axios.get(
+                            `${API_BASE_URL}/api/reports/${r.reportId || r._id}`,
+                            { headers: adminHeaders },
+                          );
+                          const detail = res.data.report || r;
+                          setSelectedReport(detail);
+                          if (detail.status === "pending") {
+                            const opened = await axios.patch(
+                              `${API_BASE_URL}/api/reports/${detail.reportId}`,
+                              { action: "report_opened" },
+                              { headers: adminHeaders },
+                            );
+                            if (opened.data?.report) {
+                              setSelectedReport(opened.data.report);
+                              setReports((prev) =>
+                                prev.map((item) =>
+                                  item.reportId === opened.data.report.reportId
+                                    ? opened.data.report
+                                    : item,
+                                ),
+                              );
+                            }
+                          }
+                        } catch {
+                          setSelectedReport(r);
+                        }
+                      }}
+                    >
+                      Review
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -640,6 +760,22 @@ export default function FeedsPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <ReportDetailDialog
+        report={selectedReport}
+        open={!!selectedReport}
+        onOpenChange={(open) => {
+          if (!open) setSelectedReport(null);
+        }}
+        onUpdated={(updated) => {
+          setSelectedReport(updated);
+          setReports((prev) =>
+            prev.map((item) =>
+              item.reportId === updated.reportId ? updated : item,
+            ),
+          );
+        }}
+      />
     </div>
   );
 }
