@@ -9,6 +9,7 @@ import {
   Building,
   Map,
   MapPin,
+  Play,
 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api";
 import { PageHeader } from "@/components/PageHeader";
@@ -17,6 +18,12 @@ import { SearchInput } from "@/components/SearchInput";
 import { LevelTabs } from "@/components/LevelTabs";
 import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -28,6 +35,7 @@ import {
 type Post = {
   _id: string;
   content: string;
+  media?: string[];
   levelType: "national" | "county" | "constituency" | "ward";
   levelValue?: string;
   country: string;
@@ -74,6 +82,65 @@ function isKenya(country: string) {
   return country.trim().toLowerCase() === "kenya";
 }
 
+function isVideoUrl(url: string) {
+  const path = url.split("?")[0].toLowerCase();
+  return (
+    path.endsWith(".mp4") ||
+    path.endsWith(".mov") ||
+    path.endsWith(".webm") ||
+    path.includes("/original.mp4")
+  );
+}
+
+function mediaThumbUrl(url: string) {
+  if (!isVideoUrl(url)) return url;
+  return url.replace(/\/original\.(mp4|mov|webm)$/i, "/poster.jpg");
+}
+
+function PostMedia({
+  media,
+  onOpen,
+}: {
+  media: string[];
+  onOpen: (index: number) => void;
+}) {
+  if (!media.length) return null;
+  const extra = media.length - 3;
+
+  return (
+    <div className="mt-2 flex gap-1.5">
+      {media.slice(0, 3).map((url, index) => {
+        const video = isVideoUrl(url);
+        return (
+          <button
+            key={`${url}-${index}`}
+            type="button"
+            onClick={() => onOpen(index)}
+            className="relative h-16 w-16 overflow-hidden rounded-md border bg-muted"
+            aria-label={video ? "Open video" : "Open image"}
+          >
+            <img
+              src={mediaThumbUrl(url)}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+            {video ? (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/35">
+                <Play className="h-4 w-4 fill-white text-white" />
+              </span>
+            ) : null}
+            {index === 2 && extra > 0 ? (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-xs font-semibold text-white">
+                +{extra}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function FeedsPage() {
   const [tab, setTab] = useState<"all" | "reports">("all");
   const [posts, setPosts] = useState<Post[]>([]);
@@ -87,6 +154,8 @@ export default function FeedsPage() {
   const [constituencyFilter, setConstituencyFilter] = useState("all");
   const [wardFilter, setWardFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [preview, setPreview] = useState<{ media: string[]; index: number } | null>(null);
+  const previewItem = preview?.media[preview.index] || "";
 
   const resetDepartments = () => {
     setCountyFilter("all");
@@ -434,7 +503,15 @@ export default function FeedsPage() {
                 {filteredPosts.map((p) => (
                   <tr key={p._id}>
                     <td className="max-w-md">
-                      <p className="line-clamp-2 font-medium">{p.content || "—"}</p>
+                      {p.content ? (
+                        <p className="line-clamp-2 font-medium">{p.content}</p>
+                      ) : !p.media?.length ? (
+                        <p className="font-medium">—</p>
+                      ) : null}
+                      <PostMedia
+                        media={p.media || []}
+                        onOpen={(index) => setPreview({ media: p.media || [], index })}
+                      />
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {new Date(p.createdAt).toLocaleDateString()}
                       </p>
@@ -490,6 +567,12 @@ export default function FeedsPage() {
                 <tr key={r._id}>
                   <td className="max-w-lg">
                     <p className="line-clamp-2 font-medium">{r.post?.content}</p>
+                    <PostMedia
+                      media={r.post?.media || []}
+                      onOpen={(index) =>
+                        setPreview({ media: r.post?.media || [], index })
+                      }
+                    />
                   </td>
                   <td className="text-sm">{r.post?.country || "Unknown"}</td>
                   <td>
@@ -511,6 +594,52 @@ export default function FeedsPage() {
           {countryFilter !== "all" ? ` in ${countryFilter}` : ""}
         </p>
       )}
+
+      <Dialog open={!!preview} onOpenChange={(open) => !open && setPreview(null)}>
+        <DialogContent className="max-w-3xl overflow-hidden p-0">
+          <DialogHeader className="px-5 pt-4">
+            <DialogTitle>Post media</DialogTitle>
+          </DialogHeader>
+          {previewItem ? (
+            <div className="bg-black">
+              {isVideoUrl(previewItem) ? (
+                <video
+                  src={previewItem}
+                  controls
+                  autoPlay
+                  className="max-h-[70vh] w-full object-contain"
+                />
+              ) : (
+                <img
+                  src={previewItem}
+                  alt=""
+                  className="max-h-[70vh] w-full object-contain"
+                />
+              )}
+            </div>
+          ) : null}
+          {preview && preview.media.length > 1 ? (
+            <div className="flex gap-2 overflow-x-auto px-5 pb-4">
+              {preview.media.map((url, index) => (
+                <button
+                  key={`${url}-${index}`}
+                  type="button"
+                  onClick={() => setPreview({ ...preview, index })}
+                  className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-md border ${
+                    preview.index === index ? "ring-2 ring-primary" : ""
+                  }`}
+                >
+                  <img
+                    src={mediaThumbUrl(url)}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
