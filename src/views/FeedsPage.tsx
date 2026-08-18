@@ -17,11 +17,20 @@ import { SearchInput } from "@/components/SearchInput";
 import { LevelTabs } from "@/components/LevelTabs";
 import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Post = {
   _id: string;
   content: string;
   levelType: "national" | "county" | "constituency" | "ward";
+  levelValue?: string;
+  country: string;
   county?: string;
   constituency?: string;
   ward?: string;
@@ -35,6 +44,17 @@ type Report = {
   post: Post;
 };
 
+type KenyaRegion = {
+  name: string;
+  constituencies: { name: string; wards: string[] }[];
+};
+
+type FeedsResponse = {
+  posts: Post[];
+  countries: { country: string; count: number }[];
+  kenyaRegions: KenyaRegion[];
+};
+
 const levelBadge: Record<string, string> = {
   national: "badge-national",
   county: "badge-county",
@@ -43,27 +63,49 @@ const levelBadge: Record<string, string> = {
 };
 
 const levels = [
-  { key: "all", label: "All", icon: Globe },
+  { key: "all", label: "All levels", icon: Globe },
   { key: "national", label: "National", icon: Globe },
   { key: "county", label: "County", icon: Building },
   { key: "constituency", label: "Constituency", icon: Map },
   { key: "ward", label: "Ward", icon: MapPin },
 ];
 
+function isKenya(country: string) {
+  return country.trim().toLowerCase() === "kenya";
+}
+
 export default function FeedsPage() {
   const [tab, setTab] = useState<"all" | "reports">("all");
   const [posts, setPosts] = useState<Post[]>([]);
+  const [countries, setCountries] = useState<{ country: string; count: number }[]>([]);
+  const [kenyaRegions, setKenyaRegions] = useState<KenyaRegion[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [search, setSearch] = useState("");
+  const [countryFilter, setCountryFilter] = useState("all");
   const [level, setLevel] = useState("all");
+  const [countyFilter, setCountyFilter] = useState("all");
+  const [constituencyFilter, setConstituencyFilter] = useState("all");
+  const [wardFilter, setWardFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+
+  const resetDepartments = () => {
+    setCountyFilter("all");
+    setConstituencyFilter("all");
+    setWardFilter("all");
+  };
 
   const fetchPosts = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/posts`);
-      setPosts(res.data || []);
+      const res = await axios.get<FeedsResponse>(`${API_BASE_URL}/api/dashboard/feeds`, {
+        params: { limit: 300 },
+      });
+      setPosts(res.data.posts || []);
+      setCountries(res.data.countries || []);
+      setKenyaRegions(res.data.kenyaRegions || []);
     } catch {
       setPosts([]);
+      setCountries([]);
+      setKenyaRegions([]);
     }
   }, []);
 
@@ -84,19 +126,129 @@ export default function FeedsPage() {
     })();
   }, [fetchPosts, fetchReports]);
 
-  const filteredPosts = useMemo(() => {
-    return posts
-      .filter((p) => level === "all" || p.levelType === level)
-      .filter((p) =>
-        p.content?.toLowerCase().includes(search.toLowerCase()),
+  const countryPosts = useMemo(() => {
+    if (countryFilter === "all") return posts;
+    return posts.filter((p) => p.country === countryFilter);
+  }, [posts, countryFilter]);
+
+  const kenyaCounties = useMemo(
+    () => kenyaRegions.map((c) => c.name).sort((a, b) => a.localeCompare(b)),
+    [kenyaRegions],
+  );
+
+  const dynamicCounties = useMemo(() => {
+    const values = countryPosts
+      .map((p) => p.county)
+      .filter(Boolean) as string[];
+    return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+  }, [countryPosts]);
+
+  const counties = useMemo(() => {
+    if (countryFilter !== "all" && isKenya(countryFilter)) return kenyaCounties;
+    return dynamicCounties;
+  }, [countryFilter, kenyaCounties, dynamicCounties]);
+
+  const constituencies = useMemo(() => {
+    if (countryFilter !== "all" && isKenya(countryFilter)) {
+      if (countyFilter === "all") {
+        return kenyaRegions.flatMap((c) => c.constituencies.map((x) => x.name));
+      }
+      const county = kenyaRegions.find((c) => c.name === countyFilter);
+      return (county?.constituencies || []).map((c) => c.name);
+    }
+    return [
+      ...new Set(
+        countryPosts
+          .filter((p) => countyFilter === "all" || p.county === countyFilter)
+          .map((p) => p.constituency)
+          .filter(Boolean) as string[],
+      ),
+    ].sort((a, b) => a.localeCompare(b));
+  }, [countryFilter, countryPosts, countyFilter, kenyaRegions]);
+
+  const wards = useMemo(() => {
+    if (countryFilter !== "all" && isKenya(countryFilter)) {
+      const county = kenyaRegions.find((c) => c.name === countyFilter);
+      if (!county) {
+        return kenyaRegions.flatMap((c) =>
+          c.constituencies.flatMap((x) => x.wards),
+        );
+      }
+      const constituenciesInCounty = county.constituencies || [];
+      if (constituencyFilter === "all") {
+        return constituenciesInCounty.flatMap((c) => c.wards);
+      }
+      const constituency = constituenciesInCounty.find(
+        (c) => c.name === constituencyFilter,
       );
-  }, [posts, level, search]);
+      return constituency?.wards || [];
+    }
+    return [
+      ...new Set(
+        countryPosts
+          .filter(
+            (p) =>
+              (countyFilter === "all" || p.county === countyFilter) &&
+              (constituencyFilter === "all" ||
+                p.constituency === constituencyFilter),
+          )
+          .map((p) => p.ward)
+          .filter(Boolean) as string[],
+      ),
+    ].sort((a, b) => a.localeCompare(b));
+  }, [
+    countryFilter,
+    countryPosts,
+    countyFilter,
+    constituencyFilter,
+    kenyaRegions,
+  ]);
+
+  const filteredPosts = useMemo(() => {
+    return countryPosts
+      .filter((p) => level === "all" || p.levelType === level)
+      .filter((p) => countyFilter === "all" || p.county === countyFilter)
+      .filter(
+        (p) =>
+          constituencyFilter === "all" || p.constituency === constituencyFilter,
+      )
+      .filter((p) => wardFilter === "all" || p.ward === wardFilter)
+      .filter((p) => {
+        const text = (p.content || "").toLowerCase();
+        const q = search.toLowerCase();
+        return (
+          text.includes(q) ||
+          p.country.toLowerCase().includes(q) ||
+          (p.county || "").toLowerCase().includes(q) ||
+          (p.constituency || "").toLowerCase().includes(q) ||
+          (p.ward || "").toLowerCase().includes(q) ||
+          (p.user?.name || "").toLowerCase().includes(q)
+        );
+      });
+  }, [
+    countryPosts,
+    level,
+    countyFilter,
+    constituencyFilter,
+    wardFilter,
+    search,
+  ]);
 
   const filteredReports = useMemo(() => {
-    return reports.filter((r) =>
-      r.post?.content?.toLowerCase().includes(search.toLowerCase()),
-    );
-  }, [reports, search]);
+    return reports.filter((r) => {
+      const post = r.post;
+      if (!post) return false;
+      const matchCountry =
+        countryFilter === "all" || post.country === countryFilter;
+      const q = search.toLowerCase();
+      const matchSearch =
+        (post.content || "").toLowerCase().includes(q) ||
+        (r.reason || "").toLowerCase().includes(q);
+      return matchCountry && matchSearch;
+    });
+  }, [reports, countryFilter, search]);
+
+  const showDepartmentFilters = level !== "national" && level !== "all";
 
   if (loading) {
     return <PageLoading title="Loading feed moderation…" />;
@@ -106,7 +258,7 @@ export default function FeedsPage() {
     <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Feed Moderation"
-        description="Review and manage posts across all IEBC levels"
+        description="Browse posts by country and local departments"
       />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -134,13 +286,128 @@ export default function FeedsPage() {
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Search posts…"
+          placeholder="Search posts, country, or department…"
           className="w-full sm:max-w-sm"
         />
       </div>
 
+      <div className="space-y-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Country
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setCountryFilter("all");
+              resetDepartments();
+            }}
+            className={`filter-pill ${countryFilter === "all" ? "filter-pill-active" : ""}`}
+          >
+            All countries ({posts.length})
+          </button>
+          {countries.map(({ country, count }) => (
+            <button
+              key={country}
+              type="button"
+              onClick={() => {
+                setCountryFilter(country);
+                resetDepartments();
+              }}
+              className={`filter-pill ${countryFilter === country ? "filter-pill-active" : ""}`}
+            >
+              {country} ({count})
+            </button>
+          ))}
+        </div>
+      </div>
+
       {tab === "all" && (
-        <LevelTabs options={levels} value={level} onChange={setLevel} />
+        <>
+          <div className="space-y-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Department level
+            </p>
+            <LevelTabs
+              options={levels}
+              value={level}
+              onChange={(value) => {
+                setLevel(value);
+                resetDepartments();
+              }}
+            />
+          </div>
+
+          {showDepartmentFilters && (
+            <div className="flex flex-wrap gap-2">
+              {(level === "county" ||
+                level === "constituency" ||
+                level === "ward") && (
+                <Select
+                  value={countyFilter}
+                  onValueChange={(v) => {
+                    setCountyFilter(v);
+                    setConstituencyFilter("all");
+                    setWardFilter("all");
+                  }}
+                >
+                  <SelectTrigger className="w-[170px]">
+                    <SelectValue placeholder="County" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All counties</SelectItem>
+                    {counties.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {(level === "constituency" || level === "ward") && (
+                <Select
+                  value={constituencyFilter}
+                  onValueChange={(v) => {
+                    setConstituencyFilter(v);
+                    setWardFilter("all");
+                  }}
+                >
+                  <SelectTrigger className="w-[190px]">
+                    <SelectValue placeholder="Constituency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All constituencies</SelectItem>
+                    {constituencies.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {level === "ward" && (
+                <Select
+                  value={wardFilter}
+                  onValueChange={setWardFilter}
+                >
+                  <SelectTrigger className="w-[170px]">
+                    <SelectValue placeholder="Ward" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All wards</SelectItem>
+                    {wards.map((w) => (
+                      <SelectItem key={w} value={w}>
+                        {w}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       <div className="data-table-wrap">
@@ -149,13 +416,15 @@ export default function FeedsPage() {
             <EmptyState
               icon={<Globe className="h-5 w-5 text-muted-foreground" />}
               title="No posts found"
-              subtitle="Try adjusting your search or level filter"
+              subtitle="Try another country or department filter"
             />
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
                   <th>Content</th>
+                  <th>Country</th>
+                  <th>Department</th>
                   <th>Level</th>
                   <th>Author</th>
                   <th className="text-right">Actions</th>
@@ -165,10 +434,18 @@ export default function FeedsPage() {
                 {filteredPosts.map((p) => (
                   <tr key={p._id}>
                     <td className="max-w-md">
-                      <p className="line-clamp-2 font-medium">{p.content}</p>
+                      <p className="line-clamp-2 font-medium">{p.content || "—"}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {new Date(p.createdAt).toLocaleDateString()}
                       </p>
+                    </td>
+                    <td className="text-sm font-medium">{p.country}</td>
+                    <td className="text-sm text-muted-foreground">
+                      {p.ward
+                        ? `${p.county || "—"} · ${p.constituency || "—"} · ${p.ward}`
+                        : p.constituency
+                          ? `${p.county || "—"} · ${p.constituency}`
+                          : p.county || "National"}
                     </td>
                     <td>
                       <span className={levelBadge[p.levelType] || "badge-national"}>
@@ -203,6 +480,7 @@ export default function FeedsPage() {
             <thead>
               <tr>
                 <th>Post</th>
+                <th>Country</th>
                 <th>Reason</th>
                 <th className="text-right">Status</th>
               </tr>
@@ -213,6 +491,7 @@ export default function FeedsPage() {
                   <td className="max-w-lg">
                     <p className="line-clamp-2 font-medium">{r.post?.content}</p>
                   </td>
+                  <td className="text-sm">{r.post?.country || "Unknown"}</td>
                   <td>
                     <span className="text-sm text-destructive">{r.reason}</span>
                   </td>
@@ -225,6 +504,13 @@ export default function FeedsPage() {
           </table>
         )}
       </div>
+
+      {tab === "all" && (
+        <p className="text-xs text-muted-foreground">
+          Showing {filteredPosts.length} of {countryPosts.length} posts
+          {countryFilter !== "all" ? ` in ${countryFilter}` : ""}
+        </p>
+      )}
     </div>
   );
 }
