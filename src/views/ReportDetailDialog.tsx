@@ -56,7 +56,12 @@ export type ModerationReport = {
   reportedUserSnapshot?: UserIdentity;
   currentReportedUser?: UserIdentity;
   postSnapshot?: PostSnapshot;
-  currentPost?: { postId?: string; status?: string; available?: boolean };
+  currentPost?: {
+    postId?: string;
+    status?: string;
+    available?: boolean;
+    moderationState?: string;
+  };
   reporter?: { userId?: string; username?: string; displayName?: string };
   moderationHistory?: ModerationEvent[];
   identityChanged?: {
@@ -79,6 +84,7 @@ const ACTION_LABELS: Record<string, string> = {
   user_suspended: "User suspended",
   user_banned: "User banned",
   report_resolved: "Report resolved",
+  post_restored: "Post restored",
 };
 
 function handleOf(user?: UserIdentity | null) {
@@ -259,6 +265,11 @@ export function ReportDetailDialog({
           <p className="text-sm font-medium">
             Current status: {postDeleted ? "Deleted" : "Active"}
           </p>
+          {report.currentPost?.moderationState ? (
+            <p className="text-xs text-muted-foreground">
+              Moderation state: {report.currentPost.moderationState}
+            </p>
+          ) : null}
         </section>
 
         <section className="space-y-2 rounded-lg border p-4">
@@ -309,6 +320,11 @@ export function ReportDetailDialog({
           <Button size="sm" variant="outline" onClick={() => runAction("post_removed")}>
             Remove post
           </Button>
+          {postDeleted ? (
+            <Button size="sm" variant="outline" onClick={() => runAction("post_restored")}>
+              Restore
+            </Button>
+          ) : null}
           <Button size="sm" variant="outline" onClick={() => runAction("report_dismissed")}>
             Dismiss
           </Button>
