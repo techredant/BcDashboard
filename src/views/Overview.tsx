@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import axios from "axios";
 import {
   Users,
   Landmark,
@@ -12,12 +11,17 @@ import {
   Smartphone,
   Monitor,
   Globe,
+  Flag,
+  AlertTriangle,
+  Ban,
+  Scale,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader } from "@/components/PageHeader";
 import { PageLoading } from "@/components/PageLoading";
 import { ChartCard } from "@/components/ChartCard";
-import { API_BASE_URL } from "@/lib/api";
+import { StatusBadge } from "@/components/StatusBadge";
+import { adminGet } from "@/lib/adminClient";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/EmptyState";
 import {
@@ -42,8 +46,61 @@ const CHART_COLORS = [
   "hsl(var(--chart-4))",
 ];
 
+type OverviewPayload = {
+  stats: {
+    users: number;
+    verified: number;
+    unverified: number;
+    politicians: number;
+    mobileActiveUsers?: number;
+    desktopActiveUsers?: number;
+    mobileDevices?: number;
+    desktopDevices?: number;
+  };
+  logins?: unknown[];
+  accountTypes?: unknown[];
+  countries?: unknown[];
+  countryActivity?: unknown[];
+  [key: string]: unknown;
+};
+
+type ModStats = {
+  users: {
+    total: number;
+    active: number;
+    suspended: number;
+    banned: number;
+    deleted: number;
+    restricted: number;
+    newToday: number;
+    newWeek: number;
+    newMonth: number;
+  };
+  moderation: {
+    reportedPosts: number;
+    reportedComments: number;
+    reportedUsers: number;
+    pendingModerationCases: number;
+    pendingReports: number;
+    warningsIssued: number;
+    livestreamReports: number;
+    contentRemoved: number;
+    appealsPending: number;
+  };
+  recentAdminActions: Array<{
+    _id: string;
+    adminName?: string;
+    action?: string;
+    targetType?: string;
+    targetId?: string;
+    reason?: string;
+    createdAt?: string;
+  }>;
+};
+
 export default function Overview() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<OverviewPayload | null>(null);
+  const [mod, setMod] = useState<ModStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -51,8 +108,12 @@ export default function Overview() {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(true);
-      const res = await axios.get(`${API_BASE_URL}/api/dashboard/overview`);
-      setData(res.data);
+      const [overview, stats] = await Promise.all([
+        adminGet<OverviewPayload>("/api/dashboard/overview"),
+        adminGet<ModStats>("/api/admin/stats").catch(() => null),
+      ]);
+      setData(overview);
+      setMod(stats);
     } catch (err) {
       console.error("Dashboard fetch error:", err);
       if (!silent) setData(null);
@@ -75,7 +136,7 @@ export default function Overview() {
       <EmptyState
         icon={<Activity className="h-6 w-6 text-muted-foreground" />}
         title="Could not load dashboard"
-        subtitle="Check your API connection and try again."
+        subtitle="Check your API connection and staff session."
       />
     );
   }
@@ -89,7 +150,7 @@ export default function Overview() {
     <div className="animate-fade-in space-y-8">
       <PageHeader
         title="Dashboard Overview"
-        description="Monitor BroadCast mobile and desktop activity across the platform"
+        description="Monitor BroadCast activity and Trust & Safety health"
         actions={
           <Button
             variant="outline"
@@ -104,6 +165,35 @@ export default function Overview() {
           </Button>
         }
       />
+
+      {mod ? (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <StatCard title="Total users" value={mod.users.total} icon={Users} changeType="neutral" />
+          <StatCard title="Active" value={mod.users.active} icon={Users} accent="success" changeType="positive" />
+          <StatCard
+            title="New today / week / month"
+            value={`${mod.users.newToday} / ${mod.users.newWeek} / ${mod.users.newMonth}`}
+            icon={Activity}
+            changeType="neutral"
+          />
+          <StatCard title="Suspended" value={mod.users.suspended} icon={AlertTriangle} accent="warning" changeType="neutral" />
+          <StatCard title="Banned" value={mod.users.banned} icon={Ban} accent="warning" changeType="neutral" />
+          <StatCard title="Deleted" value={mod.users.deleted} icon={UserX} changeType="neutral" />
+        </div>
+      ) : null}
+
+      {mod ? (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+          <StatCard title="Reported posts" value={mod.moderation.reportedPosts} icon={Flag} changeType="neutral" />
+          <StatCard title="Pending reports" value={mod.moderation.pendingReports} icon={Flag} accent="warning" changeType="neutral" />
+          <StatCard title="Pending cases" value={mod.moderation.pendingModerationCases} icon={ShieldCheck} accent="warning" changeType="neutral" />
+          <StatCard title="Warnings" value={mod.moderation.warningsIssued} icon={AlertTriangle} changeType="neutral" />
+          <StatCard title="Appeals" value={mod.moderation.appealsPending} icon={Scale} changeType="neutral" />
+          <StatCard title="Content removed" value={mod.moderation.contentRemoved} icon={Ban} changeType="neutral" />
+          <StatCard title="Livestream reports" value={mod.moderation.livestreamReports} icon={Flag} changeType="neutral" />
+          <StatCard title="Reported users" value={mod.moderation.reportedUsers} icon={Users} changeType="neutral" />
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -169,6 +259,44 @@ export default function Overview() {
         />
       </div>
 
+      {mod?.recentAdminActions?.length ? (
+        <div className="rounded-lg border border-border">
+          <div className="border-b border-border px-4 py-3">
+            <h3 className="font-display text-sm font-semibold">Recent admin actions</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+                  <th className="px-4 py-2">When</th>
+                  <th className="px-4 py-2">Admin</th>
+                  <th className="px-4 py-2">Action</th>
+                  <th className="px-4 py-2">Target</th>
+                  <th className="px-4 py-2">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mod.recentAdminActions.map((a) => (
+                  <tr key={a._id} className="border-b border-border/50">
+                    <td className="px-4 py-2 text-muted-foreground">
+                      {a.createdAt ? new Date(a.createdAt).toLocaleString() : "—"}
+                    </td>
+                    <td className="px-4 py-2">{a.adminName || "—"}</td>
+                    <td className="px-4 py-2">
+                      <StatusBadge status={a.action || "info"} />
+                    </td>
+                    <td className="px-4 py-2 text-xs text-muted-foreground">
+                      {a.targetType}/{a.targetId}
+                    </td>
+                    <td className="px-4 py-2 text-muted-foreground">{a.reason || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <ChartCard
           title="User Growth"
@@ -176,155 +304,55 @@ export default function Overview() {
           className="lg:col-span-2"
         >
           <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={data.logins}>
-              <defs>
-                <linearGradient id="userGrowth" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
+            <AreaChart data={(data.logins as object[]) || []}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} className="text-muted-foreground" />
-              <YAxis tick={{ fontSize: 12 }} className="text-muted-foreground" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  fontSize: "13px",
-                }}
-              />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
               <Area
                 type="monotone"
-                dataKey="logins"
-                stroke="hsl(var(--primary))"
-                fill="url(#userGrowth)"
-                strokeWidth={2}
+                dataKey="count"
+                stroke="hsl(var(--chart-1))"
+                fill="hsl(var(--chart-1))"
+                fillOpacity={0.2}
               />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Verification Mix" description="Account status breakdown">
-          <ResponsiveContainer width="100%" height={240}>
+        <ChartCard title="Account types" description="Distribution">
+          <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
-                data={data.segments}
-                cx="50%"
-                cy="50%"
-                innerRadius={55}
-                outerRadius={85}
+                data={(data.accountTypes as { name: string; value: number }[]) || []}
                 dataKey="value"
-                paddingAngle={3}
+                nameKey="name"
+                outerRadius={90}
+                label
               >
-                {data.segments.map((_: unknown, i: number) => (
+                {((data.accountTypes as unknown[]) || []).map((_, i) => (
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                }}
-              />
+              <Tooltip />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <ChartCard
-          title="Users by Level"
-          description="Distribution across IEBC levels"
-          className="lg:col-span-2"
-        >
+      {(data.countries as unknown[])?.length ? (
+        <ChartCard title="Users by country" description="Top locations">
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={data.levels}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="level" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                }}
-              />
-              <Bar
-                dataKey="users"
-                fill="hsl(var(--chart-2))"
-                radius={[6, 6, 0, 0]}
-              />
+            <BarChart data={(data.countries as object[]) || []}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="country" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="count" fill="hsl(var(--chart-2))" radius={4} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
-
-        <ChartCard title="Recent Activity" description="Latest mobile + desktop events">
-          <div className="max-h-[280px] space-y-1 overflow-y-auto pr-1">
-            {data.activity?.length ? (
-              data.activity.map((item: any, i: number) => (
-                <div
-                  key={i}
-                  className="flex items-start justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 transition-colors hover:border-border hover:bg-muted/40"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{item.user}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.action} · {item.level}
-                      {item.country ? ` · ${item.country}` : ""}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {item.time}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No recent activity
-              </p>
-            )}
-          </div>
-        </ChartCard>
-      </div>
-
-      <ChartCard title="Platform Activity" description="Active users and devices by platform">
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={data.platformActivity ?? []}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-            <XAxis dataKey="platform" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-              }}
-            />
-            <Bar dataKey="users" fill="hsl(var(--chart-1))" radius={[6, 6, 0, 0]} />
-            <Bar dataKey="devices" fill="hsl(var(--chart-2))" radius={[6, 6, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
-
-      <ChartCard title="Country Activity" description="Active users by country (mobile + desktop)">
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={data.countryActivity ?? []}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-            <XAxis dataKey="country" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-              }}
-            />
-            <Bar dataKey="users" fill="hsl(var(--chart-3))" radius={[6, 6, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+      ) : null}
     </div>
   );
 }

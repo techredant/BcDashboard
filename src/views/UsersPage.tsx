@@ -1,314 +1,347 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import axios from "axios";
-import { MoreHorizontal, ChevronLeft, ChevronRight, AlertTriangle, Trash2, Flame, Globe } from "lucide-react";
-import { API_BASE_URL } from "@/lib/api";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, Users } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageLoading } from "@/components/PageLoading";
 import { SearchInput } from "@/components/SearchInput";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/EmptyState";
+import { ImageZoomDialog } from "@/components/ImageZoomDialog";
+import {
+  UserActionDialog,
+  type UserActionType,
+} from "@/components/UserActionDialog";
+import { adminGet } from "@/lib/adminClient";
+import { useStaffAuth } from "@/lib/staffAuth";
 
-type DashboardUser = {
-  id: string;
-  name: string;
+type AdminUser = {
+  clerkId: string;
   email: string;
-  country: string;
-  county: string;
-  constituency: string;
-  ward: string;
-  status: "verified" | "unverified";
-  joined: string;
-  followers: number;
-  following: number;
+  firstName?: string;
+  lastName?: string;
+  nickName?: string;
+  image?: string;
+  isVerified?: boolean;
+  accountStatus?: string;
+  country?: string;
+  county?: string;
+  createdAt?: string;
+  lastActiveAt?: string | null;
+  warningCount?: number;
+  strikeCount?: number;
 };
 
-function normalizeCountry(value: string | null | undefined): string {
-  const trimmed = String(value || "").trim();
-  return trimmed.length > 0 ? trimmed : "Unknown";
-}
-
 export default function UsersPage() {
-  const [users, setUsers] = useState<DashboardUser[]>([]);
+  const { hasPermission } = useStaffAuth();
+  const [items, setItems] = useState<AdminUser[]>([]);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [countryFilter, setCountryFilter] = useState("all");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [status, setStatus] = useState("all");
+  const [verified, setVerified] = useState("all");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<DashboardUser | null>(null);
-  const [openAction, setOpenAction] = useState(false);
+  const [actionUser, setActionUser] = useState<AdminUser | null>(null);
+  const [action, setAction] = useState<UserActionType | null>(null);
+  const [actionOpen, setActionOpen] = useState(false);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: "25",
+        sortBy,
+        sortDir: "desc",
+      });
+      if (debouncedQ) params.set("q", debouncedQ);
+      if (status !== "all") params.set("status", status);
+      if (verified !== "all") params.set("verified", verified);
 
-      const res = await axios.get(`${API_BASE_URL}/api/users`);
-      const rawUsers = res.data.users || res.data;
-
-      const formatted: DashboardUser[] = rawUsers.map((u: any) => ({
-        id: u._id || u.id,
-        name:
-          u.nickName ||
-          `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
-          "No Name",
-        email: u.email || "No Email",
-        country: normalizeCountry(u.country),
-        county: u.county || "N/A",
-        constituency: u.constituency || "N/A",
-        ward: u.ward || "N/A",
-        status: u.isVerified ? "verified" : "unverified",
-        joined: u.createdAt
-          ? new Date(u.createdAt).toISOString().split("T")[0]
-          : "N/A",
-        followers: u.followers?.length || 0,
-        following: u.following?.length || 0,
-      }));
-
-      setUsers(formatted);
+      const data = await adminGet<{
+        items: AdminUser[];
+        totalPages: number;
+        total: number;
+      }>(`/api/admin/users?${params}`);
+      setItems(data.items || []);
+      setTotalPages(data.totalPages || 1);
+      setTotal(data.total || 0);
     } catch (err) {
-      console.error("Users fetch error:", err);
-      setUsers([]);
+      console.error(err);
+      setItems([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, debouncedQ, status, verified, sortBy]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
-  const countries = useMemo(() => {
-    const counts = new Map<string, number>();
-    users.forEach((u) => {
-      counts.set(u.country, (counts.get(u.country) || 0) + 1);
-    });
-    return Array.from(counts.entries())
-      .map(([country, count]) => ({ country, count }))
-      .sort((a, b) => b.count - a.count || a.country.localeCompare(b.country));
-  }, [users]);
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQ, status, verified, sortBy]);
 
-  const filtered = users.filter((u) => {
-    const matchSearch =
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase()) ||
-      u.country.toLowerCase().includes(search.toLowerCase());
+  const displayName = (u: AdminUser) =>
+    u.nickName ||
+    `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+    u.email ||
+    u.clerkId;
 
-    const matchFilter = filter === "all" || u.status === filter;
-    const matchCountry =
-      countryFilter === "all" || u.country === countryFilter;
+  const openAction = (u: AdminUser, a: UserActionType) => {
+    setActionUser(u);
+    setAction(a);
+    setActionOpen(true);
+  };
 
-    return matchSearch && matchFilter && matchCountry;
-  });
-
-  const groupedByCountry = useMemo(() => {
-    const groups = new Map<string, DashboardUser[]>();
-    filtered.forEach((user) => {
-      const list = groups.get(user.country) || [];
-      list.push(user);
-      groups.set(user.country, list);
-    });
-    return Array.from(groups.entries())
-      .map(([country, list]) => ({
-        country,
-        users: list.sort((a, b) => a.name.localeCompare(b.name)),
-      }))
-      .sort((a, b) => b.users.length - a.users.length || a.country.localeCompare(b.country));
-  }, [filtered]);
-
-  if (loading) {
-    return <PageLoading title="Loading users…" />;
-  }
+  const canWarn = hasPermission("warn_user");
+  const canRestore = hasPermission("restore_user");
+  const canRestrict = hasPermission("restrict_user");
+  const canSuspend = hasPermission("suspend_user");
+  const showRowActions = canWarn || canRestore || canRestrict || canSuspend;
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="space-y-6">
       <PageHeader
-        title="User Management"
-        description="Browse users by country across mobile and desktop"
+        title="Users"
+        description={`${total.toLocaleString()} accounts · server-side search & filters`}
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Search by name, email, or country…"
+          placeholder="Search name, username, email…"
+          className="max-w-md"
         />
-        <div className="filter-pills shrink-0">
-          {["all", "verified", "unverified"].map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={`filter-pill ${filter === f ? "filter-pill-active" : ""}`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setCountryFilter("all")}
-          className={`filter-pill ${countryFilter === "all" ? "filter-pill-active" : ""}`}
-        >
-          All countries ({users.length})
-        </button>
-        {countries.map(({ country, count }) => (
-          <button
-            key={country}
-            type="button"
-            onClick={() => setCountryFilter(country)}
-            className={`filter-pill ${countryFilter === country ? "filter-pill-active" : ""}`}
+        <div className="flex flex-wrap gap-2">
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
           >
-            {country} ({count})
-          </button>
-        ))}
-      </div>
-
-      <div className="space-y-6">
-        {groupedByCountry.length === 0 ? (
-          <div className="data-table-wrap px-5 py-10 text-center text-muted-foreground">
-            No users found
-          </div>
-        ) : (
-          groupedByCountry.map(({ country, users: countryUsers }) => (
-            <div key={country} className="data-table-wrap">
-              <div className="flex items-center justify-between border-b px-5 py-3">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-primary" />
-                  <h3 className="text-sm font-semibold">{country}</h3>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {countryUsers.length} user{countryUsers.length === 1 ? "" : "s"}
-                </span>
-              </div>
-
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Country</th>
-                    <th>User</th>
-                    <th>County</th>
-                    <th>Constituency</th>
-                    <th>Ward</th>
-                    <th>Status</th>
-                    <th>Joined</th>
-                    <th>Followers</th>
-                    <th>Following</th>
-                    <th className="text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {countryUsers.map((user) => (
-                    <tr
-                      key={user.id}
-                      className="border-b last:border-0 hover:bg-secondary/30"
-                    >
-                      <td className="px-5 py-3 text-sm font-medium">{user.country}</td>
-                      <td className="px-5 py-3">
-                        <p className="text-sm font-medium">{user.name}</p>
-                        <p className="text-xs text-muted-foreground">{user.email}</p>
-                      </td>
-                      <td className="px-5 py-3 text-sm">{user.county}</td>
-                      <td className="px-5 py-3 text-sm">{user.constituency}</td>
-                      <td className="px-5 py-3 text-sm">{user.ward}</td>
-                      <td className="px-5 py-3">
-                        <span className={`badge-${user.status}`}>{user.status}</span>
-                      </td>
-                      <td className="px-5 py-3 text-sm text-muted-foreground">
-                        {user.joined}
-                      </td>
-                      <td className="px-5 py-3 text-sm font-medium">{user.followers}</td>
-                      <td className="px-5 py-3 text-sm font-medium">{user.following}</td>
-                      <td className="px-5 py-3 text-right">
-                        <button
-                          className="p-1.5 rounded-lg hover:bg-secondary"
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setOpenAction(true);
-                          }}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="flex items-center justify-between rounded-lg border px-5 py-3">
-        <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {users.length} users across {groupedByCountry.length}{" "}
-          {groupedByCountry.length === 1 ? "country" : "countries"}
-        </p>
-        <div className="flex items-center gap-1">
-          <button className="p-1.5 rounded-lg hover:bg-secondary" type="button">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <span className="text-xs px-3 py-1 bg-primary text-white rounded-md">1</span>
-          <button className="p-1.5 rounded-lg hover:bg-secondary" type="button">
-            <ChevronRight className="h-4 w-4" />
-          </button>
+            <option value="all">All (excl. deleted)</option>
+            <option value="active">Active</option>
+            <option value="restricted">Restricted</option>
+            <option value="suspended">Suspended</option>
+            <option value="banned">Banned</option>
+            <option value="deleted">Deleted</option>
+          </select>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            value={verified}
+            onChange={(e) => setVerified(e.target.value)}
+          >
+            <option value="all">Verification</option>
+            <option value="true">Verified</option>
+            <option value="false">Unverified</option>
+          </select>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <option value="createdAt">Joined</option>
+            <option value="activity">Activity</option>
+            <option value="updatedAt">Updated</option>
+          </select>
         </div>
       </div>
 
-      <Dialog open={openAction} onOpenChange={setOpenAction}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>User actions</DialogTitle>
-            <DialogDescription>
-              {selectedUser?.name}
-              {selectedUser?.country ? ` · ${selectedUser.country}` : ""}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-2 pt-2">
-            <Button
-              variant="outline"
-              className="justify-start gap-2"
-              onClick={() => {
-                alert(`Warning sent to ${selectedUser?.name}`);
-                setOpenAction(false);
-              }}
-            >
-              <AlertTriangle className="h-4 w-4 text-warning" />
-              Warn user
-            </Button>
-            <Button
-              variant="outline"
-              className="justify-start gap-2"
-              onClick={() => {
-                alert(`User removed: ${selectedUser?.name}`);
-                setOpenAction(false);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-              Remove user
-            </Button>
-            <Button
-              variant="destructive"
-              className="justify-start gap-2"
-              onClick={() => {
-                alert(`User permanently deleted: ${selectedUser?.name}`);
-                setOpenAction(false);
-              }}
-            >
-              <Flame className="h-4 w-4" />
-              Delete permanently
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {loading ? (
+        <PageLoading title="Loading users…" />
+      ) : !items.length ? (
+        <EmptyState
+          icon={<Users className="h-6 w-6 text-muted-foreground" />}
+          title="No users found"
+          subtitle="Try adjusting search or filters."
+        />
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="data-table w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-4 py-3 font-medium">User</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Location</th>
+                <th className="px-4 py-3 font-medium">Joined</th>
+                <th className="px-4 py-3 font-medium">Last active</th>
+                <th className="px-4 py-3 font-medium">Strikes</th>
+                <th className="px-4 py-3 text-right font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((u) => {
+                const needsRestore = ["restricted", "suspended", "banned", "deleted"].includes(
+                  u.accountStatus || "",
+                );
+                return (
+                  <tr
+                    key={u.clerkId}
+                    className="border-b border-border/60 hover:bg-muted/30"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          disabled={!u.image}
+                          onClick={() => {
+                            if (u.image) setZoomImage(u.image);
+                          }}
+                          title={u.image ? "View profile photo" : undefined}
+                        >
+                          <Avatar className="h-9 w-9 ring-1 ring-border">
+                            {u.image ? (
+                              <AvatarImage src={u.image} alt="" />
+                            ) : null}
+                            <AvatarFallback className="text-xs font-semibold">
+                              {String(displayName(u)).slice(0, 1).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        </button>
+                        <div className="min-w-0">
+                          <Link
+                            href={`/users/${encodeURIComponent(u.clerkId)}`}
+                            className="font-medium text-foreground hover:underline"
+                          >
+                            {displayName(u)}
+                          </Link>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {u.email}
+                          </p>
+                          {u.isVerified ? (
+                            <span className="text-[10px] text-emerald-600">
+                              Verified
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={u.accountStatus || "active"} />
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {[u.county, u.country].filter(Boolean).join(", ") || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {u.createdAt
+                        ? new Date(u.createdAt).toLocaleDateString()
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {u.lastActiveAt
+                        ? new Date(u.lastActiveAt).toLocaleString()
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {u.strikeCount || 0} / {u.warningCount || 0}w
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/users/${encodeURIComponent(u.clerkId)}`}>
+                            Open
+                          </Link>
+                        </Button>
+                        {showRowActions && needsRestore && canRestore ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openAction(u, "restore")}
+                          >
+                            Restore
+                          </Button>
+                        ) : null}
+                        {showRowActions && canWarn ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openAction(u, "warn")}
+                          >
+                            Warn
+                          </Button>
+                        ) : null}
+                        {showRowActions && canRestrict ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openAction(u, "restrict")}
+                          >
+                            Restrict
+                          </Button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Page {page} of {totalPages}
+        </p>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <UserActionDialog
+        open={actionOpen}
+        onOpenChange={setActionOpen}
+        action={action}
+        user={
+          actionUser
+            ? {
+                clerkId: actionUser.clerkId,
+                nickName: actionUser.nickName,
+                firstName: actionUser.firstName,
+                lastName: actionUser.lastName,
+                email: actionUser.email,
+              }
+            : null
+        }
+        onSuccess={() => {
+          void fetchUsers();
+        }}
+      />
+
+      <ImageZoomDialog
+        src={zoomImage}
+        title="Profile photo"
+        onClose={() => setZoomImage(null)}
+      />
     </div>
   );
 }

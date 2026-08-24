@@ -1,19 +1,45 @@
 "use client";
 
 import { DashboardSidebar } from "./DashboardSidebar";
-import { Bell, Menu } from "lucide-react";
+import { Bell, LogOut, Menu } from "lucide-react";
 import { ModeToggle } from "./mode-toggle";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { getNavItem } from "@/config/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { useStaffAuth } from "@/lib/staffAuth";
+import { PageLoading } from "./PageLoading";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const current = getNavItem(pathname);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { staff, loading, isAuthenticated, logout } = useStaffAuth();
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [loading, isAuthenticated, router, pathname]);
+
+  if (loading) {
+    return <PageLoading title="Checking staff session…" />;
+  }
+
+  if (!isAuthenticated) {
+    return <PageLoading title="Redirecting to login…" />;
+  }
+
+  const initials =
+    staff?.name
+      ?.split(/\s+/)
+      .map((p) => p[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "AD";
 
   return (
     <div className="dashboard-shell flex min-h-screen w-full">
@@ -48,8 +74,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <Badge variant="outline" className="hidden font-normal sm:inline-flex">
-              Mobile ops
+            <Badge variant="outline" className="hidden font-normal capitalize sm:inline-flex">
+              {staff?.role?.replace("_", " ") || "staff"}
             </Badge>
 
             <ModeToggle />
@@ -60,12 +86,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5 text-muted-foreground" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-background" />
             </button>
 
-            <div className="admin-avatar" title="Administrator">
-              AD
+            <div className="admin-avatar" title={staff?.name || "Administrator"}>
+              {initials}
             </div>
+
+            <Button type="button" variant="ghost" size="icon" onClick={logout} title="Sign out">
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </header>
 

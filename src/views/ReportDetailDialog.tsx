@@ -1,7 +1,6 @@
 "use client";
 
-import axios from "axios";
-import { API_BASE_URL, adminHeaders } from "@/lib/api";
+import { adminApi } from "@/lib/adminClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +60,8 @@ export type ModerationReport = {
     status?: string;
     available?: boolean;
     moderationState?: string;
+    content?: string;
+    media?: string[];
   };
   reporter?: { userId?: string; username?: string; displayName?: string };
   moderationHistory?: ModerationEvent[];
@@ -81,10 +82,15 @@ const ACTION_LABELS: Record<string, string> = {
   report_dismissed: "Report dismissed",
   post_removed: "Post removed",
   user_warned: "User warned",
+  user_restricted: "User restricted",
   user_suspended: "User suspended",
   user_banned: "User banned",
+  user_restored: "User restored",
+  warning_reversed: "Warning reversed",
   report_resolved: "Report resolved",
   post_restored: "Post restored",
+  appeal_approved: "Appeal approved",
+  appeal_rejected: "Appeal rejected",
 };
 
 function handleOf(user?: UserIdentity | null) {
@@ -154,10 +160,9 @@ export function ReportDetailDialog({
 }) {
   const runAction = async (action: string) => {
     if (!report) return;
-    const res = await axios.patch(
-      `${API_BASE_URL}/api/reports/${report.reportId}`,
+    const res = await adminApi.patch(
+      `/api/reports/${report.reportId || report._id}`,
       { action },
-      { headers: adminHeaders },
     );
     if (res.data?.report) onUpdated(res.data.report);
   };

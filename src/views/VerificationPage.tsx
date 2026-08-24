@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
-import axios from "axios";
 import {
   CheckCircle,
   XCircle,
@@ -10,7 +9,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-import { API_BASE_URL, ADMIN_API_KEY, adminHeaders } from "@/lib/api";
+import { adminApi } from "@/lib/adminClient";
+import { ADMIN_API_KEY } from "@/lib/api";
 import { PageHeader } from "@/components/PageHeader";
 import { PageLoading } from "@/components/PageLoading";
 import { EmptyState } from "@/components/EmptyState";
@@ -27,6 +27,7 @@ type VerificationRequest = {
   phoneNumber: string;
   amount: number;
   currency: string;
+  paymentMethod?: "mpesa" | "stripe";
   createdAt: string;
   user?: {
     firstName?: string;
@@ -58,17 +59,14 @@ export default function VerificationPage() {
   const [rejectReason, setRejectReason] = useState("");
 
   const fetchPending = useCallback(async () => {
-    const res = await axios.get(
-      `${API_BASE_URL}/api/verification/admin/requests?status=pending_review`,
-      { headers: adminHeaders },
+    const res = await adminApi.get(
+      `/api/verification/admin/requests?status=pending_review`,
     );
     setRequests(res.data.requests || []);
   }, []);
 
   const fetchVerified = useCallback(async () => {
-    const res = await axios.get(`${API_BASE_URL}/api/verification/admin/verified`, {
-      headers: adminHeaders,
-    });
+    const res = await adminApi.get(`/api/verification/admin/verified`);
     setVerifiedUsers(res.data.users || []);
   }, []);
 
@@ -92,30 +90,22 @@ export default function VerificationPage() {
 
   const approve = async (id: string) => {
     try {
-      await axios.patch(
-        `${API_BASE_URL}/api/verification/admin/requests/${id}/approve`,
-        { reviewedBy: "admin-dashboard" },
-        { headers: adminHeaders },
-      );
+      await adminApi.patch(`/api/verification/admin/requests/${id}/approve`, {
+        reviewedBy: "admin-dashboard",
+      });
       setRequests((prev) => prev.filter((r) => r._id !== id));
     } catch (err) {
       console.error(err);
-      alert(
-        "Approve failed ? check ADMIN_API_KEY on server and VITE_ADMIN_API_KEY here.",
-      );
+      alert("Approve failed — check staff session / ADMIN_API_KEY.");
     }
   };
 
   const reject = async (id: string) => {
     try {
-      await axios.patch(
-        `${API_BASE_URL}/api/verification/admin/requests/${id}/reject`,
-        {
-          reason: rejectReason || "Application rejected",
-          reviewedBy: "admin-dashboard",
-        },
-        { headers: adminHeaders },
-      );
+      await adminApi.patch(`/api/verification/admin/requests/${id}/reject`, {
+        reason: rejectReason || "Application rejected",
+        reviewedBy: "admin-dashboard",
+      });
       setRejectId(null);
       setRejectReason("");
       setRequests((prev) => prev.filter((r) => r._id !== id));
@@ -127,11 +117,9 @@ export default function VerificationPage() {
   const revoke = async (clerkId: string) => {
     if (!confirm("Revoke verification for this user?")) return;
     try {
-      await axios.patch(
-        `${API_BASE_URL}/api/verification/admin/users/${clerkId}/revoke`,
-        { reason: "Revoked by admin" },
-        { headers: adminHeaders },
-      );
+      await adminApi.patch(`/api/verification/admin/users/${clerkId}/revoke`, {
+        reason: "Revoked by admin",
+      });
       setVerifiedUsers((prev) => prev.filter((u) => u.clerkId !== clerkId));
     } catch (err) {
       console.error(err);
@@ -171,8 +159,9 @@ export default function VerificationPage() {
 
       {!ADMIN_API_KEY && (
         <div className="mb-4 p-3 rounded-lg bg-amber-500/10 text-amber-800 text-sm">
-          Set <code>VITE_ADMIN_API_KEY</code> to match server{" "}
-          <code>ADMIN_API_KEY</code>.
+          <code>NEXT_PUBLIC_ADMIN_API_KEY</code> is empty in the client bundle.
+          Confirm it is set in <code>.env.local</code> and restart the Next.js
+          dev server.
         </div>
       )}
 
@@ -204,7 +193,9 @@ export default function VerificationPage() {
                     {r.applicationReason || "No reason provided"}
                   </p>
                   <p className="text-xs mt-2 text-muted-foreground">
-                    M-Pesa {r.phoneNumber} · {r.currency} {r.amount}
+                    {r.paymentMethod === "stripe"
+                      ? `Card (Stripe) · ${r.currency} ${r.amount}`
+                      : `M-Pesa ${r.phoneNumber || "—"} · ${r.currency} ${r.amount}`}
                   </p>
                 </div>
               </div>

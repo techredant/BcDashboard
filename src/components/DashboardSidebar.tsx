@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useStaffAuth } from "@/lib/staffAuth";
 
 type DashboardSidebarProps = {
   className?: string;
@@ -20,6 +21,7 @@ type DashboardSidebarProps = {
 export function DashboardSidebar({ className, onNavigate }: DashboardSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const { hasPermission, staff } = useStaffAuth();
 
   return (
     <aside
@@ -48,48 +50,59 @@ export function DashboardSidebar({ className, onNavigate }: DashboardSidebarProp
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-2 py-4">
-        {navSections.map((section) => (
-          <div key={section.label}>
-            {!collapsed && (
-              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/50">
-                {section.label}
-              </p>
-            )}
-            <div className="space-y-1">
-              {section.items.map((item) => {
-                const active = pathname === item.url;
-                const link = (
-                  <NavLink
-                    key={item.url}
-                    href={item.url}
-                    onClick={onNavigate}
-                    className={cn(
-                      "sidebar-nav-item",
-                      active && "sidebar-nav-item-active",
-                    )}
-                    activeClassName=""
-                  >
-                    <item.icon className="h-[18px] w-[18px] shrink-0" />
-                    {!collapsed && <span>{item.title}</span>}
-                  </NavLink>
-                );
-
-                if (collapsed) {
-                  return (
-                    <Tooltip key={item.url} delayDuration={0}>
-                      <TooltipTrigger asChild>{link}</TooltipTrigger>
-                      <TooltipContent side="right" className="font-medium">
-                        {item.title}
-                      </TooltipContent>
-                    </Tooltip>
+        {navSections.map((section) => {
+          const items = section.items.filter((item) => {
+            if (!item.permission) return true;
+            if (staff?.role === "super_admin") return true;
+            if (usesAdminKeyBootstrap(staff)) return true;
+            return hasPermission(item.permission);
+          });
+          if (!items.length) return null;
+          return (
+            <div key={section.label}>
+              {!collapsed && (
+                <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/50">
+                  {section.label}
+                </p>
+              )}
+              <div className="space-y-1">
+                {items.map((item) => {
+                  const active =
+                    pathname === item.url ||
+                    (item.url !== "/" && pathname.startsWith(item.url));
+                  const link = (
+                    <NavLink
+                      key={item.url}
+                      href={item.url}
+                      onClick={onNavigate}
+                      className={cn(
+                        "sidebar-nav-item",
+                        active && "sidebar-nav-item-active",
+                      )}
+                      activeClassName=""
+                    >
+                      <item.icon className="h-[18px] w-[18px] shrink-0" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
                   );
-                }
 
-                return link;
-              })}
+                  if (collapsed) {
+                    return (
+                      <Tooltip key={item.url} delayDuration={0}>
+                        <TooltipTrigger asChild>{link}</TooltipTrigger>
+                        <TooltipContent side="right" className="font-medium">
+                          {item.title}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  }
+
+                  return link;
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="border-t border-sidebar-border p-3">
@@ -113,4 +126,8 @@ export function DashboardSidebar({ className, onNavigate }: DashboardSidebarProp
       </div>
     </aside>
   );
+}
+
+function usesAdminKeyBootstrap(staff: { clerkId?: string; permissions?: string[] } | null) {
+  return staff?.clerkId === "dashboard" || (staff && !staff.permissions?.length && staff.clerkId);
 }

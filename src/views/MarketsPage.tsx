@@ -1,81 +1,91 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
-import { ShoppingBag, TrendingUp, Package, DollarSign } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import { API_BASE_URL } from "@/lib/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ShoppingBag, Package, DollarSign, Flag } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageLoading } from "@/components/PageLoading";
 import { StatCard } from "@/components/StatCard";
-import { LevelTabs } from "@/components/LevelTabs";
-import { ChartCard } from "@/components/ChartCard";
 import { EmptyState } from "@/components/EmptyState";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Button } from "@/components/ui/button";
+import { adminGet } from "@/lib/adminClient";
+import { toast } from "sonner";
+import {
+  ContentModerationActions,
+  isContentBlocked,
+} from "@/components/ContentModerationActions";
 
 type Product = {
   _id: string;
-  title: string;
-  price: number;
-  category: string;
-  levelType?: "national" | "county" | "constituency" | "ward";
-  levelValue?: string;
+  title?: string;
+  description?: string;
+  price?: number;
+  currency?: string;
+  category?: string;
+  userId?: string;
+  status?: string;
+  media?: string[];
+  createdAt?: string;
+  moderationState?: string;
+  listingStatus?: string;
+  aiModeration?: { status?: string };
+  location?: { county?: string; city?: string };
 };
-
-const levelOptions = [
-  { key: "all", label: "All" },
-  { key: "national", label: "National" },
-  { key: "county", label: "County" },
-  { key: "constituency", label: "Constituency" },
-  { key: "ward", label: "Ward" },
-];
 
 export default function MarketsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [levelFilter, setLevelFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const qs = new URLSearchParams({
+        type: "market",
+        page: String(page),
+        limit: "30",
+      });
+      if (statusFilter) qs.set("status", statusFilter);
+      const data = await adminGet<{ items?: Product[]; total?: number }>(
+        `/api/admin/content?${qs.toString()}`,
+      );
+      setProducts(data.items || []);
+      setTotal(data.total || 0);
+    } catch {
+      setProducts([]);
+      toast.error("Failed to load marketplace listings");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, statusFilter]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        const res = await axios.get(`${API_BASE_URL}/api/products`);
-        setProducts(res.data || []);
-      } catch {
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+    load();
+  }, [load]);
 
-  const filteredProducts = useMemo(() => {
-    if (levelFilter === "all") return products;
-    return products.filter((p) => p.levelType === levelFilter);
-  }, [products, levelFilter]);
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
 
-  const chartData = useMemo(() => {
-    const byCategory: Record<string, number> = {};
-    filteredProducts.forEach((p) => {
-      const cat = p.category || "Other";
-      byCategory[cat] = (byCategory[cat] || 0) + 1;
-    });
-    return Object.entries(byCategory)
-      .map(([name, value]) => ({ name, value }))
-      .slice(0, 8);
-  }, [filteredProducts]);
+  const totalValue = useMemo(
+    () => products.reduce((sum, p) => sum + (Number(p.price) || 0), 0),
+    [products],
+  );
+  const categories = useMemo(
+    () => new Set(products.map((p) => p.category).filter(Boolean)).size,
+    [products],
+  );
+  const flagged = useMemo(
+    () =>
+      products.filter((p) =>
+        isContentBlocked(p.status || p.moderationState, p.aiModeration?.status),
+      ).length,
+    [products],
+  );
 
-  const totalValue = filteredProducts.reduce((a, b) => a + (b.price || 0), 0);
-  const categories = new Set(filteredProducts.map((p) => p.category)).size;
-
-  if (loading) {
+  if (loading && products.length === 0) {
     return <PageLoading title="Loading marketplace…" />;
   }
 
@@ -83,107 +93,174 @@ export default function MarketsPage() {
     <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Markets"
-        description="Monitor marketplace listings across all IEBC levels"
-      />
-
-      <LevelTabs
-        options={levelOptions}
-        value={levelFilter}
-        onChange={setLevelFilter}
+        description="Review and moderate marketplace listings"
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Listings"
-          value={filteredProducts.length}
+          value={total}
           icon={ShoppingBag}
-          change="Active products"
+          change="In marketplace"
           changeType="neutral"
         />
         <StatCard
-          title="Categories"
-          value={categories}
+          title="On this page"
+          value={products.length}
           icon={Package}
           accent="info"
-          change="Product types"
+          change={`${categories} categories`}
           changeType="neutral"
         />
         <StatCard
-          title="Total value"
+          title="Page value"
           value={`KES ${totalValue.toLocaleString()}`}
           icon={DollarSign}
           accent="success"
-          change="Combined listing prices"
+          change="Sum of visible prices"
           changeType="neutral"
         />
         <StatCard
-          title="Activity"
-          value="Live"
-          icon={TrendingUp}
+          title="Flagged / blocked"
+          value={flagged}
+          icon={Flag}
           accent="warning"
-          change="Marketplace status"
-          changeType="positive"
+          change="Need review on this page"
+          changeType={flagged ? "negative" : "neutral"}
         />
       </div>
 
-      {chartData.length > 0 && (
-        <ChartCard title="Listings by category" description="Top product categories">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                }}
-              />
-              <Bar dataKey="value" fill="hsl(var(--chart-2))" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      )}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { key: "", label: "All" },
+          { key: "warned", label: "Warned" },
+          { key: "flagged", label: "Flagged" },
+          { key: "hidden", label: "Hidden" },
+          { key: "blocked", label: "AI blocked" },
+          { key: "removed", label: "Removed" },
+        ].map((f) => (
+          <Button
+            key={f.key || "all"}
+            size="sm"
+            variant={statusFilter === f.key ? "default" : "outline"}
+            onClick={() => setStatusFilter(f.key)}
+          >
+            {f.label}
+          </Button>
+        ))}
+      </div>
 
       <div className="data-table-wrap">
-        {filteredProducts.length === 0 ? (
+        {products.length === 0 ? (
           <EmptyState
             icon={<ShoppingBag className="h-5 w-5 text-muted-foreground" />}
             title="No listings"
-            subtitle="Products will appear here when sellers post on the mobile app"
+            subtitle="Products will appear here when sellers post listings"
           />
         ) : (
           <table className="data-table">
             <thead>
               <tr>
                 <th>Product</th>
+                <th>Seller</th>
                 <th>Category</th>
-                <th>Level</th>
                 <th>Price</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map((p) => (
-                <tr key={p._id}>
-                  <td className="font-medium">{p.title}</td>
-                  <td className="text-muted-foreground">{p.category}</td>
-                  <td>
-                    <span className={`badge-${p.levelType || "national"}`}>
-                      {p.levelType || "general"}
-                    </span>
-                  </td>
-                  <td className="font-semibold">
-                    KES {p.price?.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
+              {products.map((p) => {
+                const listingStatus = p.listingStatus || p.status;
+                const modState = p.moderationState;
+                const state =
+                  (modState && modState !== "active" && modState !== "restored"
+                    ? modState
+                    : null) ||
+                  listingStatus ||
+                  p.aiModeration?.status;
+                const blocked = isContentBlocked(
+                  modState || listingStatus,
+                  p.aiModeration?.status,
+                );
+                return (
+                  <tr key={p._id}>
+                    <td>
+                      <div className="flex items-start gap-3">
+                        {p.media?.[0] ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={p.media[0]}
+                            alt=""
+                            className="h-12 w-12 shrink-0 rounded object-cover"
+                          />
+                        ) : null}
+                        <div className="min-w-0">
+                          <p className="font-medium line-clamp-1">
+                            {p.title || "Untitled"}
+                          </p>
+                          <p className="text-xs text-muted-foreground line-clamp-1">
+                            {p.description || "—"}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="text-xs text-muted-foreground max-w-[120px] truncate">
+                      {p.userId || "—"}
+                    </td>
+                    <td className="text-muted-foreground">{p.category || "—"}</td>
+                    <td className="font-semibold whitespace-nowrap">
+                      {p.currency || "KES"} {Number(p.price || 0).toLocaleString()}
+                    </td>
+                    <td>
+                      <div className="flex flex-col gap-1">
+                        {state ? <StatusBadge status={state} /> : "—"}
+                        {listingStatus &&
+                        modState &&
+                        listingStatus !== modState &&
+                        modState !== "active" &&
+                        modState !== "restored" ? (
+                          <span className="text-[10px] text-muted-foreground">
+                            listing: {listingStatus}
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td>
+                      <ContentModerationActions
+                        contentType="product"
+                        contentId={p._id}
+                        ownerUserId={p.userId}
+                        blocked={blocked}
+                        onUpdated={load}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
       </div>
+
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={page <= 1}
+          onClick={() => setPage((p) => p - 1)}
+        >
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={products.length === 0}
+          onClick={() => setPage((p) => p + 1)}
+        >
+          Next
+        </Button>
+      </div>
     </div>
   );
 }
-
-

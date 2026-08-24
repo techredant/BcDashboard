@@ -1,1 +1,5 @@
-export { default } from "@/views/UsersPage";
+import UsersPage from "@/views/UsersPage";
+
+export default function Page() {
+  return <UsersPage />;
+}

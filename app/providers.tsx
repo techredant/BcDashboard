@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { StaffAuthProvider } from "@/lib/staffAuth";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -14,9 +15,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="broadcast-admin-theme">
         <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          {children}
+          <StaffAuthProvider>
+            <Toaster />
+            <Sonner />
+            {children}
+          </StaffAuthProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>

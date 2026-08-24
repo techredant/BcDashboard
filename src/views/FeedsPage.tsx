@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import axios from "axios";
 import {
-  MoreHorizontal,
   ShieldAlert,
   Globe,
   Building,
@@ -11,7 +9,8 @@ import {
   MapPin,
   Play,
 } from "lucide-react";
-import { API_BASE_URL, ADMIN_API_KEY, adminHeaders } from "@/lib/api";
+import { adminApi } from "@/lib/adminClient";
+import { ADMIN_API_KEY } from "@/lib/api";
 import { PageHeader } from "@/components/PageHeader";
 import { PageLoading } from "@/components/PageLoading";
 import { SearchInput } from "@/components/SearchInput";
@@ -19,10 +18,15 @@ import { LevelTabs } from "@/components/LevelTabs";
 import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/StatusBadge";
 import {
   ReportDetailDialog,
   type ModerationReport,
 } from "@/views/ReportDetailDialog";
+import {
+  PostReviewDialog,
+  type FeedPostReview,
+} from "@/views/PostReviewDialog";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +43,7 @@ import {
 
 type Post = {
   _id: string;
+  userId?: string;
   content: string;
   media?: string[];
   levelType: "national" | "county" | "constituency" | "ward";
@@ -48,7 +53,9 @@ type Post = {
   constituency?: string;
   ward?: string;
   createdAt: string;
-  user?: { name?: string; email?: string };
+  moderationState?: string;
+  moderationReviewStatus?: string;
+  user?: { name?: string; email?: string; clerkId?: string };
 };
 
 type Report = ModerationReport;
@@ -151,6 +158,7 @@ export default function FeedsPage() {
   const [reportStatusFilter, setReportStatusFilter] = useState("all");
   const [deletedAccountsOnly, setDeletedAccountsOnly] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [selectedPost, setSelectedPost] = useState<FeedPostReview | null>(null);
   const [reportsError, setReportsError] = useState("");
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState("all");
@@ -159,6 +167,7 @@ export default function FeedsPage() {
   const [constituencyFilter, setConstituencyFilter] = useState("all");
   const [wardFilter, setWardFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [postsError, setPostsError] = useState("");
   const [preview, setPreview] = useState<{ media: string[]; index: number } | null>(null);
   const previewItem = preview?.media[preview.index] || "";
 
@@ -170,24 +179,37 @@ export default function FeedsPage() {
 
   const fetchPosts = useCallback(async () => {
     try {
-      const res = await axios.get<FeedsResponse>(`${API_BASE_URL}/api/dashboard/feeds`, {
+      setPostsError("");
+      const res = await adminApi.get<FeedsResponse>(`/api/dashboard/feeds`, {
         params: { limit: 300 },
       });
       setPosts(res.data.posts || []);
       setCountries(res.data.countries || []);
       setKenyaRegions(res.data.kenyaRegions || []);
-    } catch {
+    } catch (err: unknown) {
       setPosts([]);
       setCountries([]);
       setKenyaRegions([]);
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      const msg = String((err as { message?: string })?.message || "");
+      if (!status && /Network Error|ECONNREFUSED|Failed to fetch/i.test(msg)) {
+        setPostsError(
+          "Cannot reach the API. Start the backend with npm run dev in /backend (port 3000).",
+        );
+      } else if (status === 401 || status === 403) {
+        setPostsError(
+          "Unauthorized loading feeds — open /login and use Continue with admin API key.",
+        );
+      } else {
+        setPostsError("Could not load posts.");
+      }
     }
   }, []);
 
   const fetchReports = useCallback(async () => {
     try {
       setReportsError("");
-      const res = await axios.get(`${API_BASE_URL}/api/reports`, {
-        headers: adminHeaders,
+      const res = await adminApi.get(`/api/reports`, {
         params: {
           limit: 50,
           status: reportStatusFilter === "all" ? undefined : reportStatusFilter,
@@ -199,7 +221,7 @@ export default function FeedsPage() {
       setReports([]);
       setReportsError(
         err?.response?.status === 401
-          ? "Set NEXT_PUBLIC_ADMIN_API_KEY to load reports."
+          ? "Unauthorized — sign in again, or confirm NEXT_PUBLIC_ADMIN_API_KEY matches the backend ADMIN_API_KEY (restart Next after changing .env)."
           : "Could not load reports.",
       );
     }
@@ -356,6 +378,12 @@ export default function FeedsPage() {
         description="Browse posts by country and local departments"
       />
 
+      {postsError ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {postsError}
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="filter-pills">
           <button
@@ -438,7 +466,8 @@ export default function FeedsPage() {
           </button>
           {!ADMIN_API_KEY ? (
             <span className="text-xs text-destructive">
-              Set NEXT_PUBLIC_ADMIN_API_KEY to match ADMIN_API_KEY
+              NEXT_PUBLIC_ADMIN_API_KEY is empty in this browser bundle — restart{" "}
+              <code>npm run dev</code> after editing .env / .env.local
             </span>
           ) : null}
         </div>
@@ -549,6 +578,7 @@ export default function FeedsPage() {
                   <th>Department</th>
                   <th>Level</th>
                   <th>Author</th>
+                  <th>Status</th>
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
@@ -585,14 +615,23 @@ export default function FeedsPage() {
                     <td className="text-muted-foreground">
                       {p.user?.name || "Unknown"}
                     </td>
+                    <td>
+                      <div className="flex flex-col items-start gap-1">
+                        <StatusBadge status={p.moderationState || "active"} />
+                        {p.moderationReviewStatus &&
+                        p.moderationReviewStatus !== "none" ? (
+                          <StatusBadge status={p.moderationReviewStatus} />
+                        ) : null}
+                      </div>
+                    </td>
                     <td className="text-right">
-                      <button
-                        type="button"
-                        className="rounded-lg p-1.5 hover:bg-muted"
-                        aria-label="Post actions"
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedPost(p)}
                       >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
+                        Review
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -652,6 +691,24 @@ export default function FeedsPage() {
                     <p className="line-clamp-2 font-medium">
                       {r.postSnapshot?.content || r.post?.content || "—"}
                     </p>
+                    <PostMedia
+                      media={
+                        r.postSnapshot?.media?.length
+                          ? r.postSnapshot.media
+                          : r.post?.media?.length
+                            ? r.post.media
+                            : r.currentPost?.media || []
+                      }
+                      onOpen={(index) => {
+                        const media =
+                          r.postSnapshot?.media?.length
+                            ? r.postSnapshot.media
+                            : r.post?.media?.length
+                              ? r.post.media
+                              : r.currentPost?.media || [];
+                        setPreview({ media, index });
+                      }}
+                    />
                     {r.currentPost?.status === "deleted" ? (
                       <p className="text-xs text-destructive">Post status: Deleted</p>
                     ) : null}
@@ -670,17 +727,15 @@ export default function FeedsPage() {
                       variant="outline"
                       onClick={async () => {
                         try {
-                          const res = await axios.get(
-                            `${API_BASE_URL}/api/reports/${r.reportId || r._id}`,
-                            { headers: adminHeaders },
+                          const res = await adminApi.get(
+                            `/api/reports/${r.reportId || r._id}`,
                           );
                           const detail = res.data.report || r;
                           setSelectedReport(detail);
                           if (detail.status === "pending") {
-                            const opened = await axios.patch(
-                              `${API_BASE_URL}/api/reports/${detail.reportId}`,
+                            const opened = await adminApi.patch(
+                              `/api/reports/${detail.reportId}`,
                               { action: "report_opened" },
-                              { headers: adminHeaders },
                             );
                             if (opened.data?.report) {
                               setSelectedReport(opened.data.report);
@@ -774,6 +829,17 @@ export default function FeedsPage() {
               item.reportId === updated.reportId ? updated : item,
             ),
           );
+        }}
+      />
+
+      <PostReviewDialog
+        post={selectedPost}
+        open={!!selectedPost}
+        onOpenChange={(open) => {
+          if (!open) setSelectedPost(null);
+        }}
+        onUpdated={() => {
+          void fetchPosts();
         }}
       />
     </div>
