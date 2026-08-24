@@ -165,7 +165,6 @@ export function StatusReportDetailDialog({
             <div className="flex flex-wrap gap-2">
               {(snap?.media?.length ? snap.media : current?.media || []).map(
                 (url) => (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     key={url}
                     src={url}

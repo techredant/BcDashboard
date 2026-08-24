@@ -331,7 +331,6 @@ export default function ReportsPage() {
                     <td className="px-3 py-2">
                       <div className="flex max-w-xs items-start gap-2">
                         {snap?.media?.[0] ? (
-                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={snap.media[0]}
                             alt=""

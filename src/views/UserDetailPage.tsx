@@ -220,7 +220,6 @@ export default function UserDetailPage() {
               onClick={() => setZoomImage(u.image || null)}
               title="View profile photo"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={u.image}
                 alt=""

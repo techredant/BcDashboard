@@ -225,7 +225,6 @@ export default function ContentPage() {
                     {item.media?.length ? (
                       <div className="mt-2 flex gap-2 overflow-x-auto">
                         {item.media.slice(0, 4).map((url) => (
-                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             key={url}
                             src={url}

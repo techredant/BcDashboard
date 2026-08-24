@@ -188,7 +188,6 @@ export default function MarketsPage() {
                     <td>
                       <div className="flex items-start gap-3">
                         {p.media?.[0] ? (
-                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={p.media[0]}
                             alt=""

@@ -144,7 +144,6 @@ export default function StatusesPage() {
                     <td>
                       <div className="flex items-start gap-3">
                         {s.media?.[0] ? (
-                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={s.media[0]}
                             alt=""

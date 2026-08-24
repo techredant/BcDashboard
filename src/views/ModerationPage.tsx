@@ -243,7 +243,6 @@ export default function ModerationPage() {
                   {c.mediaUrls?.length ? (
                     <div className="mt-2 flex gap-2 overflow-x-auto">
                       {c.mediaUrls.slice(0, 3).map((url) => (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img key={url} src={url} alt="" className="h-16 w-16 rounded object-cover" />
                       ))}
                     </div>

@@ -248,17 +248,15 @@ export function UserActionDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {action !== "restore" || true ? (
-            <div className="space-y-2">
-              <Label htmlFor="reason">Reason</Label>
-              <Input
-                id="reason"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Required for most actions"
-              />
-            </div>
-          ) : null}
+          <div className="space-y-2">
+            <Label htmlFor="reason">Reason</Label>
+            <Input
+              id="reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Required for most actions"
+            />
+          </div>
 
           {["warn", "restrict", "suspend", "ban"].includes(action) ? (
             <div className="space-y-2">

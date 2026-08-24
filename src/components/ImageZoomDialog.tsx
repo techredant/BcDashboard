@@ -68,7 +68,6 @@ export function ImageZoomDialog({
         </DialogHeader>
         <div className="flex min-h-[50vh] items-center justify-center bg-black">
           {activeSrc && !failed ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               key={activeSrc}
               src={activeSrc}
