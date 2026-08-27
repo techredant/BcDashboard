@@ -17,6 +17,7 @@ type CaseRow = {
   text?: string;
   status?: string;
   severity?: number;
+  priority?: "URGENT" | "HIGH" | "NORMAL" | "LOW" | string;
   action?: string;
   finalDecision?: string;
   agreement?: string;
@@ -31,6 +32,21 @@ type CaseRow = {
   labels?: unknown;
 };
 
+const PRIORITY_ORDER = ["URGENT", "HIGH", "NORMAL", "LOW"] as const;
+
+function priorityBadgeClass(priority?: string) {
+  switch (String(priority || "").toUpperCase()) {
+    case "URGENT":
+      return "bg-red-600 text-white";
+    case "HIGH":
+      return "bg-orange-500 text-white";
+    case "NORMAL":
+      return "bg-slate-600 text-white";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
+
 export default function ModerationPage() {
   const [tab, setTab] = useState("cases");
   const [cases, setCases] = useState<CaseRow[]>([]);
@@ -39,6 +55,7 @@ export default function ModerationPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("open");
+  const [priorityFilter, setPriorityFilter] = useState("all");
 
   const loadCases = useCallback(async () => {
     const params = new URLSearchParams({ limit: "40" });
@@ -50,12 +67,14 @@ export default function ModerationPage() {
   }, [statusFilter]);
 
   const loadQueue = useCallback(async () => {
+    const params = new URLSearchParams({ limit: "40" });
+    if (priorityFilter !== "all") params.set("priority", priorityFilter);
     const data = await adminGet<{ cases: CaseRow[]; metrics?: Record<string, number> }>(
-      "/api/ai/moderation/queue?limit=40",
+      `/api/ai/moderation/queue?${params}`,
     );
     setQueue(data.cases || []);
     setMetrics(data.metrics || null);
-  }, []);
+  }, [priorityFilter]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -213,15 +232,44 @@ export default function ModerationPage() {
         </TabsContent>
 
         <TabsContent value="ai" className="space-y-3 pt-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={priorityFilter === "all" ? "default" : "outline"}
+              onClick={() => setPriorityFilter("all")}
+            >
+              All
+            </Button>
+            {PRIORITY_ORDER.map((p) => (
+              <Button
+                key={p}
+                size="sm"
+                variant={priorityFilter === p ? "default" : "outline"}
+                onClick={() => setPriorityFilter(p)}
+              >
+                {p}
+              </Button>
+            ))}
+          </div>
           {queue.map((c) => (
             <div key={c._id} className="rounded-lg border p-4">
               <div className="flex justify-between gap-2">
                 <div>
-                  <p className="text-sm font-medium">
-                    {c.targetType} · {c.authorId}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded px-2 py-0.5 text-[10px] font-semibold tracking-wide ${priorityBadgeClass(c.priority)}`}
+                    >
+                      {c.priority || "NORMAL"}
+                    </span>
+                    <p className="text-sm font-medium">
+                      {c.targetType} · {c.authorId}
+                    </p>
+                  </div>
                   <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
                     {c.text}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Severity {c.severity ?? 0}
                   </p>
                   <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
                     AI only — not a human decision: {c.engineReason || c.finalDecision || c.action}

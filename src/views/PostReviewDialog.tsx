@@ -26,8 +26,15 @@ export type FeedPostReview = {
   createdAt?: string;
   moderationState?: string;
   moderationReviewStatus?: string;
+  moderationStatus?: string;
   user?: { name?: string; email?: string; clerkId?: string };
 };
+
+const ON_FEED_STATUSES = new Set([
+  "approved",
+  "limited",
+  "age_restricted",
+]);
 
 type ModerationHistoryItem = {
   _id: string;
@@ -128,6 +135,29 @@ export function PostReviewDialog({
       ["warn", "warn_content"].includes(h.action || ""),
     );
   const reviewResolved = post.moderationReviewStatus === "resolved";
+  const moderationStatus = String(post.moderationStatus || "").toLowerCase();
+  const onFeed =
+    !moderationStatus || ON_FEED_STATUSES.has(moderationStatus);
+
+  const sendToFeed = async () => {
+    if (!post._id || onFeed) return;
+    setBusy(true);
+    try {
+      await adminPost(`/api/admin/content/post/${post._id}/approve`, {
+        reason: "Sent to feed from dashboard review",
+      });
+      toast.success("Sent to feed");
+      onUpdated?.();
+      onOpenChange(false);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Send to feed failed";
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const runContentAction = async (action: string, reason: string) => {
     if (!post._id) return;
@@ -168,7 +198,16 @@ export function PostReviewDialog({
               Post
             </p>
             <div className="flex flex-wrap gap-2">
-              <StatusBadge status={post.moderationState || "active"} />
+              <StatusBadge
+                status={
+                  onFeed
+                    ? "on_feed"
+                    : post.moderationStatus || "under_review"
+                }
+              />
+              {post.moderationState && post.moderationState !== "active" ? (
+                <StatusBadge status={post.moderationState} />
+              ) : null}
               {post.moderationReviewStatus &&
               post.moderationReviewStatus !== "none" ? (
                 <StatusBadge status={post.moderationReviewStatus} />
@@ -260,6 +299,13 @@ export function PostReviewDialog({
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
+              disabled={busy || onFeed}
+              onClick={() => void sendToFeed()}
+            >
+              {onFeed ? "On feed" : "Send to feed"}
+            </Button>
+            <Button
+              size="sm"
               variant="outline"
               disabled={busy || !authorId}
               onClick={() => {
@@ -311,6 +357,7 @@ export function PostReviewDialog({
             </Button>
             <Button
               size="sm"
+              variant="outline"
               disabled={busy || reviewResolved}
               onClick={() =>
                 void runContentAction("resolve", "Review resolved")

@@ -55,6 +55,7 @@ type Post = {
   createdAt: string;
   moderationState?: string;
   moderationReviewStatus?: string;
+  moderationStatus?: string;
   user?: { name?: string; email?: string; clerkId?: string };
 };
 
@@ -85,6 +86,31 @@ const levels = [
   { key: "constituency", label: "Constituency", icon: Map },
   { key: "ward", label: "Ward", icon: MapPin },
 ];
+
+const ON_FEED_STATUSES = new Set(["approved", "limited", "age_restricted"]);
+const UNDER_REVIEW_STATUSES = new Set([
+  "pending",
+  "processing",
+  "review",
+  "failed",
+]);
+
+type FeedVisibility = "all" | "review" | "feed" | "blocked";
+
+function feedVisibility(status?: string): Exclude<FeedVisibility, "all"> {
+  const key = String(status || "").toLowerCase();
+  if (UNDER_REVIEW_STATUSES.has(key)) return "review";
+  if (key === "blocked") return "blocked";
+  if (ON_FEED_STATUSES.has(key) || !key) return "feed";
+  return "feed";
+}
+
+function feedVisibilityBadge(status?: string) {
+  const vis = feedVisibility(status);
+  if (vis === "review") return "under_review";
+  if (vis === "blocked") return "blocked";
+  return "on_feed";
+}
 
 function isKenya(country: string) {
   return country.trim().toLowerCase() === "kenya";
@@ -166,6 +192,8 @@ export default function FeedsPage() {
   const [countyFilter, setCountyFilter] = useState("all");
   const [constituencyFilter, setConstituencyFilter] = useState("all");
   const [wardFilter, setWardFilter] = useState("all");
+  const [feedVisibilityFilter, setFeedVisibilityFilter] =
+    useState<FeedVisibility>("all");
   const [loading, setLoading] = useState(true);
   const [postsError, setPostsError] = useState("");
   const [preview, setPreview] = useState<{ media: string[]; index: number } | null>(null);
@@ -327,6 +355,10 @@ export default function FeedsPage() {
       )
       .filter((p) => wardFilter === "all" || p.ward === wardFilter)
       .filter((p) => {
+        if (feedVisibilityFilter === "all") return true;
+        return feedVisibility(p.moderationStatus) === feedVisibilityFilter;
+      })
+      .filter((p) => {
         const text = (p.content || "").toLowerCase();
         const q = search.toLowerCase();
         return (
@@ -344,6 +376,7 @@ export default function FeedsPage() {
     countyFilter,
     constituencyFilter,
     wardFilter,
+    feedVisibilityFilter,
     search,
   ]);
 
@@ -444,6 +477,28 @@ export default function FeedsPage() {
           ))}
         </div>
       </div>
+
+      {tab === "all" && (
+        <div className="flex flex-wrap items-center gap-2">
+          {(
+            [
+              { key: "all", label: "All" },
+              { key: "review", label: "Under review" },
+              { key: "feed", label: "On feed" },
+              { key: "blocked", label: "Blocked" },
+            ] as { key: FeedVisibility; label: string }[]
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setFeedVisibilityFilter(key)}
+              className={`filter-pill ${feedVisibilityFilter === key ? "filter-pill-active" : ""}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {tab === "reports" && (
         <div className="flex flex-wrap items-center gap-2">
@@ -617,7 +672,13 @@ export default function FeedsPage() {
                     </td>
                     <td>
                       <div className="flex flex-col items-start gap-1">
-                        <StatusBadge status={p.moderationState || "active"} />
+                        <StatusBadge
+                          status={feedVisibilityBadge(p.moderationStatus)}
+                        />
+                        {p.moderationState &&
+                        p.moderationState !== "active" ? (
+                          <StatusBadge status={p.moderationState} />
+                        ) : null}
                         {p.moderationReviewStatus &&
                         p.moderationReviewStatus !== "none" ? (
                           <StatusBadge status={p.moderationReviewStatus} />
