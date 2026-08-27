@@ -32,6 +32,11 @@ export function resolveDashboardMediaUrl(uri: string | undefined | null): string
   const trimmed = String(uri || "").trim();
   if (!trimmed) return "";
 
+  const gridFs = trimmed.match(/\/api\/media\/([^?\s#]+)/i);
+  if (gridFs) {
+    return `/api/media/${gridFs[1]}`;
+  }
+
   if (trimmed.startsWith("broadcast/")) {
     return `${MEDIA_CDN_URL}/${trimmed.replace(/^\/+/, "")}`;
   }
