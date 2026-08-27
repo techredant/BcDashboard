@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { adminApi, adminGet, adminPost } from "@/lib/adminClient";
 import { toast } from "sonner";
+import { MediaThumb } from "@/components/MediaThumb";
 import {
   ReportDetailDialog,
   type ModerationReport,
@@ -331,10 +332,9 @@ export default function ReportsPage() {
                     <td className="px-3 py-2">
                       <div className="flex max-w-xs items-start gap-2">
                         {snap?.media?.[0] ? (
-                          <img
+                          <MediaThumb
                             src={snap.media[0]}
-                            alt=""
-                            className="h-10 w-10 shrink-0 rounded object-cover"
+                            className="h-10 w-10 shrink-0 rounded"
                           />
                         ) : null}
                         <div className="min-w-0">

@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { adminGet } from "@/lib/adminClient";
 import { toast } from "sonner";
+import { MediaThumb } from "@/components/MediaThumb";
 import {
   ContentModerationActions,
   isContentBlocked,
@@ -144,10 +145,9 @@ export default function StatusesPage() {
                     <td>
                       <div className="flex items-start gap-3">
                         {s.media?.[0] ? (
-                          <img
+                          <MediaThumb
                             src={s.media[0]}
-                            alt=""
-                            className="h-12 w-12 shrink-0 rounded object-cover"
+                            className="h-12 w-12 shrink-0 rounded"
                           />
                         ) : null}
                         <p className="text-sm line-clamp-2 max-w-md">

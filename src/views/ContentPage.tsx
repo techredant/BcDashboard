@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageLoading } from "@/components/PageLoading";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { MediaThumb } from "@/components/MediaThumb";
 import { adminGet } from "@/lib/adminClient";
 import { toast } from "sonner";
 import {
@@ -225,11 +226,10 @@ export default function ContentPage() {
                     {item.media?.length ? (
                       <div className="mt-2 flex gap-2 overflow-x-auto">
                         {item.media.slice(0, 4).map((url) => (
-                          <img
+                          <MediaThumb
                             key={url}
                             src={url}
-                            alt=""
-                            className="h-16 w-16 rounded object-cover"
+                            className="h-16 w-16 shrink-0 rounded"
                           />
                         ))}
                       </div>

@@ -1,6 +1,12 @@
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://cast-api-zeta.vercel.app";
 
+/** Public media CDN — must match backend `CLOUDFRONT_URL`. */
+export const MEDIA_CDN_URL = (
+  process.env.NEXT_PUBLIC_CDN_BASE_URL ||
+  "https://dtjlba0j1xvqa.cloudfront.net"
+).replace(/\/$/, "");
+
 export const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
 
 const TOKEN_KEY = "broadcast_admin_token";

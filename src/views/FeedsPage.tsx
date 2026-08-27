@@ -7,7 +7,6 @@ import {
   Building,
   Map,
   MapPin,
-  Play,
 } from "lucide-react";
 import { adminApi } from "@/lib/adminClient";
 import { ADMIN_API_KEY } from "@/lib/api";
@@ -19,6 +18,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
+import { MediaThumb, DashboardMedia } from "@/components/MediaThumb";
+import { isVideoUrl } from "@/lib/mediaUrl";
 import {
   ReportDetailDialog,
   type ModerationReport,
@@ -116,21 +117,6 @@ function isKenya(country: string) {
   return country.trim().toLowerCase() === "kenya";
 }
 
-function isVideoUrl(url: string) {
-  const path = url.split("?")[0].toLowerCase();
-  return (
-    path.endsWith(".mp4") ||
-    path.endsWith(".mov") ||
-    path.endsWith(".webm") ||
-    path.includes("/original.mp4")
-  );
-}
-
-function mediaThumbUrl(url: string) {
-  if (!isVideoUrl(url)) return url;
-  return url.replace(/\/original\.(mp4|mov|webm)$/i, "/poster.jpg");
-}
-
 function PostMedia({
   media,
   onOpen,
@@ -143,34 +129,22 @@ function PostMedia({
 
   return (
     <div className="mt-2 flex gap-1.5">
-      {media.slice(0, 3).map((url, index) => {
-        const video = isVideoUrl(url);
-        return (
-          <button
-            key={`${url}-${index}`}
-            type="button"
-            onClick={() => onOpen(index)}
-            className="relative h-16 w-16 overflow-hidden rounded-md border bg-muted"
-            aria-label={video ? "Open video" : "Open image"}
-          >
-            <img
-              src={mediaThumbUrl(url)}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-            {video ? (
-              <span className="absolute inset-0 flex items-center justify-center bg-black/35">
-                <Play className="h-4 w-4 fill-white text-white" />
-              </span>
-            ) : null}
-            {index === 2 && extra > 0 ? (
-              <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-xs font-semibold text-white">
-                +{extra}
-              </span>
-            ) : null}
-          </button>
-        );
-      })}
+      {media.slice(0, 3).map((url, index) => (
+        <button
+          key={`${url}-${index}`}
+          type="button"
+          onClick={() => onOpen(index)}
+          className="relative h-16 w-16 overflow-hidden rounded-md border bg-muted"
+          aria-label={isVideoUrl(url) ? "Open video" : "Open image"}
+        >
+          <MediaThumb src={url} className="h-full w-full" />
+          {index === 2 && extra > 0 ? (
+            <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 text-xs font-semibold text-white">
+              +{extra}
+            </span>
+          ) : null}
+        </button>
+      ))}
     </div>
   );
 }
@@ -838,20 +812,10 @@ export default function FeedsPage() {
           </DialogHeader>
           {previewItem ? (
             <div className="bg-black">
-              {isVideoUrl(previewItem) ? (
-                <video
-                  src={previewItem}
-                  controls
-                  autoPlay
-                  className="max-h-[70vh] w-full object-contain"
-                />
-              ) : (
-                <img
-                  src={previewItem}
-                  alt=""
-                  className="max-h-[70vh] w-full object-contain"
-                />
-              )}
+              <DashboardMedia
+                src={previewItem}
+                className="max-h-[70vh] w-full object-contain"
+              />
             </div>
           ) : null}
           {preview && preview.media.length > 1 ? (
@@ -865,11 +829,7 @@ export default function FeedsPage() {
                     preview.index === index ? "ring-2 ring-primary" : ""
                   }`}
                 >
-                  <img
-                    src={mediaThumbUrl(url)}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
+                  <MediaThumb src={url} className="h-full w-full" />
                 </button>
               ))}
             </div>

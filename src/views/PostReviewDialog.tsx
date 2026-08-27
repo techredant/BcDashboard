@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Play } from "lucide-react";
 import { adminGet, adminPost } from "@/lib/adminClient";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
+import { MediaThumb } from "@/components/MediaThumb";
 import {
   Dialog,
   DialogContent,
@@ -60,21 +60,6 @@ const ACTION_LABELS: Record<string, string> = {
   resolve_content: "Resolved review",
   reverse_warning: "Reversed action",
 };
-
-function isVideoUrl(url: string) {
-  const path = url.split("?")[0].toLowerCase();
-  return (
-    path.endsWith(".mp4") ||
-    path.endsWith(".mov") ||
-    path.endsWith(".webm") ||
-    path.includes("/original.mp4")
-  );
-}
-
-function mediaThumbUrl(url: string) {
-  if (!isVideoUrl(url)) return url;
-  return url.replace(/\/original\.(mp4|mov|webm)$/i, "/poster.jpg");
-}
 
 export function PostReviewDialog({
   post,
@@ -224,26 +209,13 @@ export function PostReviewDialog({
             </p>
             {media.length ? (
               <div className="flex flex-wrap gap-2 pt-1">
-                {media.map((url, index) => {
-                  const video = isVideoUrl(url);
-                  return (
-                    <div
-                      key={`${url}-${index}`}
-                      className="relative h-24 w-24 overflow-hidden rounded-md border bg-muted"
-                    >
-                      <img
-                        src={mediaThumbUrl(url)}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                      {video ? (
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/35">
-                          <Play className="h-5 w-5 fill-white text-white" />
-                        </span>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                {media.map((url, index) => (
+                  <MediaThumb
+                    key={`${url}-${index}`}
+                    src={url}
+                    className="h-24 w-24 rounded-md border"
+                  />
+                ))}
               </div>
             ) : null}
             <p className="text-xs text-muted-foreground">

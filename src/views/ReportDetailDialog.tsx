@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MediaThumb } from "@/components/MediaThumb";
 
 export type UserIdentity = {
   available?: boolean;
@@ -252,11 +253,10 @@ export function ReportDetailDialog({
           {report.postSnapshot?.media?.length ? (
             <div className="flex flex-wrap gap-2">
               {report.postSnapshot.media.map((url) => (
-                <img
+                <MediaThumb
                   key={url}
-                  src={url.replace(/\/original\.mp4$/i, "/poster.jpg")}
-                  alt=""
-                  className="h-20 w-20 rounded-md object-cover"
+                  src={url}
+                  className="h-20 w-20 rounded-md"
                 />
               ))}
             </div>

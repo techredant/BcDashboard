@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MediaThumb } from "@/components/MediaThumb";
 
 export type StatusReportDetail = {
   reportId: string;
@@ -165,11 +166,10 @@ export function StatusReportDetailDialog({
             <div className="flex flex-wrap gap-2">
               {(snap?.media?.length ? snap.media : current?.media || []).map(
                 (url) => (
-                  <img
+                  <MediaThumb
                     key={url}
                     src={url}
-                    alt=""
-                    className="h-20 w-20 rounded-md object-cover"
+                    className="h-20 w-20 rounded-md"
                   />
                 ),
               )}

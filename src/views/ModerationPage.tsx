@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { adminGet, adminPatch, adminPost } from "@/lib/adminClient";
 import { toast } from "sonner";
+import { MediaThumb } from "@/components/MediaThumb";
 
 type CaseRow = {
   _id: string;
@@ -291,7 +292,11 @@ export default function ModerationPage() {
                   {c.mediaUrls?.length ? (
                     <div className="mt-2 flex gap-2 overflow-x-auto">
                       {c.mediaUrls.slice(0, 3).map((url) => (
-                        <img key={url} src={url} alt="" className="h-16 w-16 rounded object-cover" />
+                        <MediaThumb
+                          key={url}
+                          src={url}
+                          className="h-16 w-16 shrink-0 rounded"
+                        />
                       ))}
                     </div>
                   ) : null}

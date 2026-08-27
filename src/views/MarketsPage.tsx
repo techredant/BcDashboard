@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { adminGet } from "@/lib/adminClient";
 import { toast } from "sonner";
+import { MediaThumb } from "@/components/MediaThumb";
 import {
   ContentModerationActions,
   isContentBlocked,
@@ -188,10 +189,9 @@ export default function MarketsPage() {
                     <td>
                       <div className="flex items-start gap-3">
                         {p.media?.[0] ? (
-                          <img
+                          <MediaThumb
                             src={p.media[0]}
-                            alt=""
-                            className="h-12 w-12 shrink-0 rounded object-cover"
+                            className="h-12 w-12 shrink-0 rounded"
                           />
                         ) : null}
                         <div className="min-w-0">
