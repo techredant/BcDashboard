@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, UserPlus, Users } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { PageLoading } from "@/components/PageLoading";
 import { SearchInput } from "@/components/SearchInput";
 import { StatusBadge } from "@/components/StatusBadge";
+import { StatCard } from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/EmptyState";
@@ -17,6 +18,9 @@ import {
 } from "@/components/UserActionDialog";
 import { adminGet } from "@/lib/adminClient";
 import { useStaffAuth } from "@/lib/staffAuth";
+import { cn } from "@/lib/utils";
+
+type OnboardingFilter = "all" | "located" | "signup_only";
 
 type AdminUser = {
   clerkId: string;
@@ -29,10 +33,19 @@ type AdminUser = {
   accountStatus?: string;
   country?: string;
   county?: string;
+  constituency?: string;
+  ward?: string;
   createdAt?: string;
   lastActiveAt?: string | null;
   warningCount?: number;
   strikeCount?: number;
+  locationComplete?: boolean;
+};
+
+type UserCounts = {
+  all: number;
+  withLocation: number;
+  signupOnly: number;
 };
 
 export default function UsersPage() {
@@ -42,10 +55,16 @@ export default function UsersPage() {
   const [debouncedQ, setDebouncedQ] = useState("");
   const [status, setStatus] = useState("all");
   const [verified, setVerified] = useState("all");
+  const [onboarding, setOnboarding] = useState<OnboardingFilter>("all");
   const [sortBy, setSortBy] = useState("createdAt");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState<UserCounts>({
+    all: 0,
+    withLocation: 0,
+    signupOnly: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [actionUser, setActionUser] = useState<AdminUser | null>(null);
   const [action, setAction] = useState<UserActionType | null>(null);
@@ -69,22 +88,29 @@ export default function UsersPage() {
       if (debouncedQ) params.set("q", debouncedQ);
       if (status !== "all") params.set("status", status);
       if (verified !== "all") params.set("verified", verified);
+      if (onboarding !== "all") params.set("onboarding", onboarding);
 
       const data = await adminGet<{
         items: AdminUser[];
         totalPages: number;
         total: number;
+        counts?: UserCounts;
       }>(`/api/admin/users?${params}`);
       setItems(data.items || []);
       setTotalPages(data.totalPages || 1);
       setTotal(data.total || 0);
+      setCounts({
+        all: data.counts?.all ?? data.total ?? 0,
+        withLocation: data.counts?.withLocation ?? 0,
+        signupOnly: data.counts?.signupOnly ?? 0,
+      });
     } catch (err) {
       console.error(err);
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedQ, status, verified, sortBy]);
+  }, [page, debouncedQ, status, verified, sortBy, onboarding]);
 
   useEffect(() => {
     fetchUsers();
@@ -92,13 +118,23 @@ export default function UsersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQ, status, verified, sortBy]);
+  }, [debouncedQ, status, verified, sortBy, onboarding]);
 
   const displayName = (u: AdminUser) =>
     u.nickName ||
     `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
     u.email ||
     u.clerkId;
+
+  const isLocated = (u: AdminUser) => {
+    if (typeof u.locationComplete === "boolean") return u.locationComplete;
+    if (u.country && u.country !== "Kenya") return true;
+    return Boolean(u.county && u.constituency && u.ward);
+  };
+
+  const locationLabel = (u: AdminUser) =>
+    [u.ward, u.constituency, u.county, u.country].filter(Boolean).join(", ") ||
+    "Set";
 
   const openAction = (u: AdminUser, a: UserActionType) => {
     setActionUser(u);
@@ -116,8 +152,61 @@ export default function UsersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Users"
-        description={`${total.toLocaleString()} accounts · server-side search & filters`}
+        description={`${counts.all.toLocaleString()} accounts · ${counts.signupOnly.toLocaleString()} signup only (no location)`}
       />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <button
+          type="button"
+          onClick={() => setOnboarding("all")}
+          className={cn(
+            "rounded-xl text-left ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            onboarding === "all" && "ring-2 ring-primary",
+          )}
+        >
+          <StatCard
+            title="All users"
+            value={counts.all}
+            icon={Users}
+            change="In this filter"
+            changeType="neutral"
+          />
+        </button>
+        <button
+          type="button"
+          onClick={() => setOnboarding("located")}
+          className={cn(
+            "rounded-xl text-left ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            onboarding === "located" && "ring-2 ring-primary",
+          )}
+        >
+          <StatCard
+            title="Set location"
+            value={counts.withLocation}
+            icon={MapPin}
+            accent="success"
+            change="Finished location onboarding"
+            changeType="positive"
+          />
+        </button>
+        <button
+          type="button"
+          onClick={() => setOnboarding("signup_only")}
+          className={cn(
+            "rounded-xl text-left ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            onboarding === "signup_only" && "ring-2 ring-primary",
+          )}
+        >
+          <StatCard
+            title="Signup only"
+            value={counts.signupOnly}
+            icon={UserPlus}
+            accent="warning"
+            change="Signed up, never set location"
+            changeType="neutral"
+          />
+        </button>
+      </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <SearchInput
@@ -150,6 +239,15 @@ export default function UsersPage() {
           </select>
           <select
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            value={onboarding}
+            onChange={(e) => setOnboarding(e.target.value as OnboardingFilter)}
+          >
+            <option value="all">All onboarding</option>
+            <option value="located">Set location</option>
+            <option value="signup_only">Signup only</option>
+          </select>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
           >
@@ -165,7 +263,13 @@ export default function UsersPage() {
       ) : !items.length ? (
         <EmptyState
           icon={<Users className="h-6 w-6 text-muted-foreground" />}
-          title="No users found"
+          title={
+            onboarding === "signup_only"
+              ? "No signup-only accounts"
+              : onboarding === "located"
+                ? "No users with location"
+                : "No users found"
+          }
           subtitle="Try adjusting search or filters."
         />
       ) : (
@@ -234,7 +338,13 @@ export default function UsersPage() {
                       <StatusBadge status={u.accountStatus || "active"} />
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {[u.county, u.country].filter(Boolean).join(", ") || "—"}
+                      {isLocated(u) ? (
+                        locationLabel(u)
+                      ) : (
+                        <span className="inline-flex rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning">
+                          Signup only
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {u.createdAt
@@ -295,7 +405,7 @@ export default function UsersPage() {
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          Page {page} of {totalPages}
+          {total.toLocaleString()} in this list · page {page} of {totalPages}
         </p>
         <div className="flex gap-2">
           <Button

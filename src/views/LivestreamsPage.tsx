@@ -25,6 +25,7 @@ type Livestream = {
   description?: string;
   streamKind?: string;
   status?: string;
+  joinedCount?: number;
   viewerCount?: number;
   createdAt?: string;
   startedAt?: string;
@@ -34,6 +35,10 @@ type Livestream = {
 };
 
 type DetailStream = Livestream | null;
+
+function peopleJoined(s: Pick<Livestream, "joinedCount" | "viewerCount">) {
+  return Number(s.joinedCount) || Number(s.viewerCount) || 0;
+}
 
 export default function LivestreamsPage() {
   const [items, setItems] = useState<Livestream[]>([]);
@@ -88,7 +93,7 @@ export default function LivestreamsPage() {
     [items],
   );
   const viewers = useMemo(
-    () => items.reduce((sum, s) => sum + (Number(s.viewerCount) || 0), 0),
+    () => items.reduce((sum, s) => sum + peopleJoined(s), 0),
     [items],
   );
   const blocked = useMemo(
@@ -168,11 +173,11 @@ export default function LivestreamsPage() {
           changeType={liveCount ? "positive" : "neutral"}
         />
         <StatCard
-          title="Viewers (page)"
+          title="Joined (page)"
           value={viewers.toLocaleString()}
           icon={Eye}
           accent="info"
-          change="Sum of viewer counts"
+          change="People who joined"
           changeType="neutral"
         />
         <StatCard
@@ -221,7 +226,7 @@ export default function LivestreamsPage() {
                 <th>Stream</th>
                 <th>Host</th>
                 <th>Kind</th>
-                <th>Viewers</th>
+                <th>Joined</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -264,7 +269,7 @@ export default function LivestreamsPage() {
                       )}
                     </td>
                     <td className="font-medium">
-                      {(s.viewerCount || 0).toLocaleString()}
+                      {peopleJoined(s).toLocaleString()}
                     </td>
                     <td>
                       <div className="flex flex-col gap-1">
@@ -384,8 +389,8 @@ export default function LivestreamsPage() {
                 <dd className="capitalize">{detail.streamKind || "—"}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Viewers</dt>
-                <dd>{(detail.viewerCount || 0).toLocaleString()}</dd>
+                <dt className="text-muted-foreground">Joined</dt>
+                <dd>{peopleJoined(detail).toLocaleString()}</dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Started</dt>

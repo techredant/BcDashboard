@@ -6,6 +6,7 @@ import {
   Landmark,
   ShieldCheck,
   UserX,
+  UserPlus,
   RefreshCw,
   Activity,
   Smartphone,
@@ -15,6 +16,7 @@ import {
   AlertTriangle,
   Ban,
   Scale,
+  MapPin,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader } from "@/components/PageHeader";
@@ -75,6 +77,8 @@ type ModStats = {
     newToday: number;
     newWeek: number;
     newMonth: number;
+    signupOnly?: number;
+    withLocation?: number;
   };
   moderation: {
     reportedPosts: number;
@@ -169,6 +173,22 @@ export default function Overview() {
       {mod ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           <StatCard title="Total users" value={mod.users.total} icon={Users} changeType="neutral" />
+          <StatCard
+            title="Set location"
+            value={mod.users.withLocation ?? 0}
+            icon={MapPin}
+            accent="success"
+            change="Finished location"
+            changeType="positive"
+          />
+          <StatCard
+            title="Signup only"
+            value={mod.users.signupOnly ?? 0}
+            icon={UserPlus}
+            accent="warning"
+            change="Signed up, no location"
+            changeType="neutral"
+          />
           <StatCard title="Active" value={mod.users.active} icon={Users} accent="success" changeType="positive" />
           <StatCard
             title="New today / week / month"
