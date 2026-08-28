@@ -91,7 +91,7 @@ export function PostReviewDialog({
       setHistoryLoading(true);
       try {
         const res = await adminGet<{ items?: ModerationHistoryItem[] }>(
-          `/api/admin/moderation/user/${encodeURIComponent(authorId)}?limit=50`,
+          `/api/admin/moderation/user/${encodeURIComponent(authorId)}?limit=10`,
         );
         if (cancelled) return;
         const items = (res.items || []).filter(

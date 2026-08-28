@@ -81,7 +81,7 @@ export default function UsersPage() {
       setLoading(true);
       const params = new URLSearchParams({
         page: String(page),
-        limit: "25",
+        limit: "10",
         sortBy,
         sortDir: "desc",
       });

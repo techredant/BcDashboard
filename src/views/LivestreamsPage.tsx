@@ -55,7 +55,7 @@ export default function LivestreamsPage() {
       const qs = new URLSearchParams({
         type: "livestreams",
         page: String(page),
-        limit: "30",
+        limit: "10",
       });
       if (statusFilter) qs.set("status", statusFilter);
       const data = await adminGet<{ items?: Livestream[]; total?: number }>(

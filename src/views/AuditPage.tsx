@@ -35,7 +35,7 @@ export default function AuditPage() {
     try {
       const params = new URLSearchParams({
         page: String(page),
-        limit: "40",
+        limit: "10",
       });
       if (action) params.set("action", action);
       if (q) params.set("userId", q);

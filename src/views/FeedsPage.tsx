@@ -183,7 +183,7 @@ export default function FeedsPage() {
     try {
       setPostsError("");
       const res = await adminApi.get<FeedsResponse>(`/api/dashboard/feeds`, {
-        params: { limit: 300 },
+        params: { limit: 10 },
       });
       setPosts(res.data.posts || []);
       setCountries(res.data.countries || []);
@@ -213,7 +213,7 @@ export default function FeedsPage() {
       setReportsError("");
       const res = await adminApi.get(`/api/reports`, {
         params: {
-          limit: 50,
+          limit: 10,
           status: reportStatusFilter === "all" ? undefined : reportStatusFilter,
           accountDeleted: deletedAccountsOnly ? "true" : undefined,
         },

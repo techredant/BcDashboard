@@ -102,7 +102,7 @@ export default function UserDetailPage() {
   const loadModeration = useCallback(async () => {
     try {
       const res = await adminGet<{ items: ModerationRecord[] }>(
-        `/api/admin/moderation/user/${encodeURIComponent(id)}?limit=50`,
+        `/api/admin/moderation/user/${encodeURIComponent(id)}?limit=10`,
       );
       setModerationItems(res.items || []);
     } catch {
@@ -140,7 +140,7 @@ export default function UserDetailPage() {
           return;
         }
         const res = await adminGet<{ items: unknown[] }>(
-          `/api/admin/users/${encodeURIComponent(id)}/${seg}?limit=30`,
+          `/api/admin/users/${encodeURIComponent(id)}/${seg}?limit=10`,
         );
         setTabItems(res.items || []);
       } catch {

@@ -29,7 +29,7 @@ export default function AppealsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: "40" });
+      const params = new URLSearchParams({ limit: "10" });
       if (status !== "all") params.set("status", status);
       const data = await adminGet<{ items: Appeal[] }>(`/api/admin/appeals?${params}`);
       setItems(data.items || []);

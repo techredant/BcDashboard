@@ -59,7 +59,7 @@ export default function ModerationPage() {
   const [priorityFilter, setPriorityFilter] = useState("all");
 
   const loadCases = useCallback(async () => {
-    const params = new URLSearchParams({ limit: "40" });
+    const params = new URLSearchParams({ limit: "10" });
     if (statusFilter !== "all") params.set("status", statusFilter);
     const data = await adminGet<{ items: CaseRow[] }>(
       `/api/admin/moderation/cases?${params}`,
@@ -68,7 +68,7 @@ export default function ModerationPage() {
   }, [statusFilter]);
 
   const loadQueue = useCallback(async () => {
-    const params = new URLSearchParams({ limit: "40" });
+    const params = new URLSearchParams({ limit: "10" });
     if (priorityFilter !== "all") params.set("priority", priorityFilter);
     const data = await adminGet<{ cases: CaseRow[]; metrics?: Record<string, number> }>(
       `/api/ai/moderation/queue?${params}`,

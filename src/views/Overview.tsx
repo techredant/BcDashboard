@@ -113,13 +113,12 @@ export default function Overview() {
       if (!silent) setLoading(true);
       else setRefreshing(true);
       const [overview, stats] = await Promise.all([
-        adminGet<OverviewPayload>("/api/dashboard/overview"),
+        adminGet<OverviewPayload>("/api/dashboard/overview").catch(() => null),
         adminGet<ModStats>("/api/admin/stats").catch(() => null),
       ]);
       setData(overview);
       setMod(stats);
-    } catch (err) {
-      console.error("Dashboard fetch error:", err);
+    } catch {
       if (!silent) setData(null);
     } finally {
       setLoading(false);
@@ -135,7 +134,7 @@ export default function Overview() {
     return <PageLoading title="Loading platform overview…" />;
   }
 
-  if (!data) {
+  if (!data && !mod) {
     return (
       <EmptyState
         icon={<Activity className="h-6 w-6 text-muted-foreground" />}
@@ -146,7 +145,7 @@ export default function Overview() {
   }
 
   const verifiedPct =
-    data.stats.users > 0
+    data && data.stats.users > 0
       ? Math.round((data.stats.verified / data.stats.users) * 100)
       : 0;
 
@@ -215,6 +214,8 @@ export default function Overview() {
         </div>
       ) : null}
 
+      {data ? (
+      <>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Users"
@@ -278,6 +279,8 @@ export default function Overview() {
           changeType="neutral"
         />
       </div>
+      </>
+      ) : null}
 
       {mod?.recentAdminActions?.length ? (
         <div className="rounded-lg border border-border">
@@ -317,6 +320,8 @@ export default function Overview() {
         </div>
       ) : null}
 
+      {data ? (
+      <>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <ChartCard
           title="User Growth"
@@ -372,6 +377,8 @@ export default function Overview() {
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
+      ) : null}
+      </>
       ) : null}
     </div>
   );

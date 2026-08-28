@@ -111,7 +111,7 @@ export default function ContentPage() {
     setLoading(true);
     try {
       const data = await adminGet<{ items: ContentItem[] }>(
-        `/api/admin/content?type=${apiTypeForTab(type)}&page=${page}&limit=20`,
+        `/api/admin/content?type=${apiTypeForTab(type)}&page=${page}&limit=10`,
       );
       setItems(data.items || []);
     } catch {

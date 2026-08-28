@@ -43,7 +43,7 @@ export default function ReportsPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({ limit: "50" });
+      const params = new URLSearchParams({ limit: "10" });
       if (filter !== "all") params.set("status", filter);
 
       if (kind === "posts") {
