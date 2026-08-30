@@ -78,6 +78,7 @@ export default function UsersPage() {
     withLocation: 0,
     signupOnly: 0,
   });
+  const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionUser, setActionUser] = useState<AdminUser | null>(null);
   const [action, setAction] = useState<UserActionType | null>(null);
@@ -109,6 +110,7 @@ export default function UsersPage() {
         total: number;
         counts?: UserCounts;
       }>(`/api/admin/users?${params}`);
+      setLoadError("");
       setItems(data.items || []);
       setTotalPages(data.totalPages || 1);
       setTotal(data.total || 0);
@@ -120,6 +122,9 @@ export default function UsersPage() {
     } catch (err) {
       console.error(err);
       setItems([]);
+      setLoadError(
+        "Could not load users. The dashboard API is unreachable — set NEXT_PUBLIC_API_URL to a running backend (or https://cast-api-zeta.vercel.app) and restart Next.",
+      );
     } finally {
       setLoading(false);
     }
@@ -280,6 +285,12 @@ export default function UsersPage() {
 
       {loading ? (
         <PageLoading title="Loading users…" />
+      ) : loadError ? (
+        <EmptyState
+          icon={<Users className="h-6 w-6 text-muted-foreground" />}
+          title="Could not load users"
+          subtitle={loadError}
+        />
       ) : !items.length ? (
         <EmptyState
           icon={<Users className="h-6 w-6 text-muted-foreground" />}
