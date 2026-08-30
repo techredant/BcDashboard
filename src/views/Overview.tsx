@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Users,
   Landmark,
@@ -198,6 +199,15 @@ export default function Overview() {
           <StatCard title="Suspended" value={mod.users.suspended} icon={AlertTriangle} accent="warning" changeType="neutral" />
           <StatCard title="Banned" value={mod.users.banned} icon={Ban} accent="warning" changeType="neutral" />
           <StatCard title="Deleted" value={mod.users.deleted} icon={UserX} changeType="neutral" />
+        </div>
+      ) : null}
+
+      {mod ? (
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">Trust &amp; Safety</p>
+          <Button variant="link" className="h-auto p-0" asChild>
+            <Link href="/moderation/center">Open Command Center</Link>
+          </Button>
         </div>
       ) : null}
 

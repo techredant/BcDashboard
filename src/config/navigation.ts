@@ -14,6 +14,7 @@ import {
   ScrollText,
   Gavel,
   CircleDot,
+  Command,
   type LucideIcon,
 } from "lucide-react";
 
@@ -58,6 +59,13 @@ export const navSections: NavSection[] = [
   {
     label: "Trust & Safety",
     items: [
+      {
+        title: "Command Center",
+        url: "/moderation/center",
+        icon: Command,
+        description: "Unified moderation queue and SLA",
+        permission: "view_cases",
+      },
       {
         title: "Reports",
         url: "/reports",
