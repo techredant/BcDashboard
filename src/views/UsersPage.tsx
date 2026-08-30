@@ -22,15 +22,28 @@ import { cn } from "@/lib/utils";
 
 type OnboardingFilter = "all" | "located" | "signup_only";
 
+const ORG_ACCOUNT_TYPE_RX =
+  /organization|business|non-profit|public figure|media|e-commerce|entertainment/i;
+
+function isOrgAccountType(accountType?: string) {
+  const t = (accountType || "").trim();
+  if (!t || t === "Personal Account" || t.toLowerCase() === "personal") {
+    return false;
+  }
+  return ORG_ACCOUNT_TYPE_RX.test(t);
+}
+
 type AdminUser = {
   clerkId: string;
   email: string;
   firstName?: string;
   lastName?: string;
   nickName?: string;
+  companyName?: string;
   image?: string;
   isVerified?: boolean;
   accountStatus?: string;
+  accountType?: string;
   country?: string;
   county?: string;
   constituency?: string;
@@ -123,18 +136,25 @@ export default function UsersPage() {
   const displayName = (u: AdminUser) =>
     u.nickName ||
     `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+    u.companyName ||
     u.email ||
     u.clerkId;
 
   const isLocated = (u: AdminUser) => {
     if (typeof u.locationComplete === "boolean") return u.locationComplete;
+    if (isOrgAccountType(u.accountType)) return true;
     if (u.country && u.country !== "Kenya") return true;
     return Boolean(u.county && u.constituency && u.ward);
   };
 
-  const locationLabel = (u: AdminUser) =>
-    [u.ward, u.constituency, u.county, u.country].filter(Boolean).join(", ") ||
-    "Set";
+  const locationLabel = (u: AdminUser) => {
+    const geo = [u.ward, u.constituency, u.county, u.country]
+      .filter(Boolean)
+      .join(", ");
+    if (geo) return geo;
+    if (isOrgAccountType(u.accountType)) return "Organization";
+    return "Set";
+  };
 
   const openAction = (u: AdminUser, a: UserActionType) => {
     setActionUser(u);
@@ -152,7 +172,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Users"
-        description={`${counts.all.toLocaleString()} accounts · ${counts.signupOnly.toLocaleString()} signup only (no location)`}
+        description={`${counts.all.toLocaleString()} accounts · ${counts.signupOnly.toLocaleString()} signup only (personal, never set location)`}
       />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -185,7 +205,7 @@ export default function UsersPage() {
             value={counts.withLocation}
             icon={MapPin}
             accent="success"
-            change="Finished location onboarding"
+            change="Finished location or organization"
             changeType="positive"
           />
         </button>
@@ -202,7 +222,7 @@ export default function UsersPage() {
             value={counts.signupOnly}
             icon={UserPlus}
             accent="warning"
-            change="Signed up, never set location"
+            change="Personal, never set location"
             changeType="neutral"
           />
         </button>

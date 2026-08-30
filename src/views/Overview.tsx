@@ -177,7 +177,7 @@ export default function Overview() {
             value={mod.users.withLocation ?? 0}
             icon={MapPin}
             accent="success"
-            change="Finished location"
+            change="Finished location or organization"
             changeType="positive"
           />
           <StatCard
@@ -185,7 +185,7 @@ export default function Overview() {
             value={mod.users.signupOnly ?? 0}
             icon={UserPlus}
             accent="warning"
-            change="Signed up, no location"
+            change="Personal, never set location"
             changeType="neutral"
           />
           <StatCard title="Active" value={mod.users.active} icon={Users} accent="success" changeType="positive" />
