@@ -30,10 +30,15 @@ export type FeedPostReview = {
   user?: { name?: string; email?: string; clerkId?: string };
 };
 
+/** Everything except `blocked` is publicly visible — posts go to the feed on create. */
 const ON_FEED_STATUSES = new Set([
   "approved",
   "limited",
   "age_restricted",
+  "pending",
+  "processing",
+  "review",
+  "failed",
 ]);
 
 type ModerationHistoryItem = {
@@ -124,20 +129,21 @@ export function PostReviewDialog({
   const onFeed =
     !moderationStatus || ON_FEED_STATUSES.has(moderationStatus);
 
-  const sendToFeed = async () => {
+  /** Only reachable for AI-blocked posts — everything else is already public. */
+  const unblock = async () => {
     if (!post._id || onFeed) return;
     setBusy(true);
     try {
       await adminPost(`/api/admin/content/post/${post._id}/approve`, {
-        reason: "Sent to feed from dashboard review",
+        reason: "Unblocked from dashboard review",
       });
-      toast.success("Sent to feed");
+      toast.success("Post unblocked");
       onUpdated?.();
       onOpenChange(false);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || "Send to feed failed";
+          ?.message || "Unblock failed";
       toast.error(msg);
     } finally {
       setBusy(false);
@@ -269,13 +275,11 @@ export function PostReviewDialog({
           </section>
 
           <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              disabled={busy || onFeed}
-              onClick={() => void sendToFeed()}
-            >
-              {onFeed ? "On feed" : "Send to feed"}
-            </Button>
+            {onFeed ? null : (
+              <Button size="sm" disabled={busy} onClick={() => void unblock()}>
+                Unblock
+              </Button>
+            )}
             <Button
               size="sm"
               variant="outline"

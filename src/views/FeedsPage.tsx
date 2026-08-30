@@ -88,29 +88,25 @@ const levels = [
   { key: "ward", label: "Ward", icon: MapPin },
 ];
 
-const ON_FEED_STATUSES = new Set(["approved", "limited", "age_restricted"]);
-const UNDER_REVIEW_STATUSES = new Set([
+/** Posts publish on create, so only `blocked` is hidden from the public feed. */
+const SCANNING_STATUSES = new Set([
   "pending",
   "processing",
   "review",
   "failed",
 ]);
 
-type FeedVisibility = "all" | "review" | "feed" | "blocked";
+type FeedVisibility = "all" | "scanning" | "feed" | "blocked";
 
 function feedVisibility(status?: string): Exclude<FeedVisibility, "all"> {
   const key = String(status || "").toLowerCase();
-  if (UNDER_REVIEW_STATUSES.has(key)) return "review";
   if (key === "blocked") return "blocked";
-  if (ON_FEED_STATUSES.has(key) || !key) return "feed";
+  if (SCANNING_STATUSES.has(key)) return "scanning";
   return "feed";
 }
 
 function feedVisibilityBadge(status?: string) {
-  const vis = feedVisibility(status);
-  if (vis === "review") return "under_review";
-  if (vis === "blocked") return "blocked";
-  return "on_feed";
+  return feedVisibility(status) === "blocked" ? "blocked" : "on_feed";
 }
 
 function isKenya(country: string) {
@@ -330,7 +326,10 @@ export default function FeedsPage() {
       .filter((p) => wardFilter === "all" || p.ward === wardFilter)
       .filter((p) => {
         if (feedVisibilityFilter === "all") return true;
-        return feedVisibility(p.moderationStatus) === feedVisibilityFilter;
+        const vis = feedVisibility(p.moderationStatus);
+        // "On feed" covers everything public, including posts AI is still scanning.
+        if (feedVisibilityFilter === "feed") return vis !== "blocked";
+        return vis === feedVisibilityFilter;
       })
       .filter((p) => {
         const text = (p.content || "").toLowerCase();
@@ -457,8 +456,8 @@ export default function FeedsPage() {
           {(
             [
               { key: "all", label: "All" },
-              { key: "review", label: "Under review" },
               { key: "feed", label: "On feed" },
+              { key: "scanning", label: "AI scanning" },
               { key: "blocked", label: "Blocked" },
             ] as { key: FeedVisibility; label: string }[]
           ).map(({ key, label }) => (
