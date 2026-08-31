@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, MoreHorizontal } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { PageLoading } from "@/components/PageLoading";
+import { AppStatusBadge } from "@/components/AppStatusBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -71,6 +73,37 @@ type DetailResponse = {
     livestreams: number;
   };
   lastActiveAt?: string | null;
+  appStatus?: {
+    status?: string;
+    label?: string;
+    lastAppOpenAt?: string | null;
+    lastHeartbeatAt?: string | null;
+    lastPushSuccessAt?: string | null;
+    lastPushFailureAt?: string | null;
+    pushTokenStatus?: string;
+    deviceCount?: number;
+    activeDeviceCount?: number;
+    uninstallLikelihood?: string;
+  };
+  devices?: Array<{
+    deviceId?: string;
+    platform?: string;
+    appVersion?: string | null;
+    osVersion?: string | null;
+    deviceName?: string | null;
+    model?: string | null;
+    manufacturer?: string | null;
+    active?: boolean;
+    pushTokenStatus?: string;
+    uninstallLikelihood?: string;
+    uninstallEvidence?: string;
+    lastAppOpenAt?: string | null;
+    lastHeartbeatAt?: string | null;
+    lastPushSuccessAt?: string | null;
+    lastPushFailureAt?: string | null;
+    lastSeenAt?: string | null;
+    tokenHint?: string | null;
+  }>;
 };
 
 export default function UserDetailPage() {
@@ -343,18 +376,136 @@ export default function UserDetailPage() {
           ))}
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-3 pt-4 text-sm">
-          <p>
-            Account status: <StatusBadge status={u.accountStatus || "active"} />
-          </p>
-          <p className="text-muted-foreground">
-            Internal strikes: {data.stats.strikes} (not shown on public profile)
-          </p>
-          {u.suspensionUntil ? (
-            <p className="text-muted-foreground">
-              Suspension until {new Date(String(u.suspensionUntil)).toLocaleString()}
+        <TabsContent value="overview" className="space-y-4 pt-4 text-sm">
+          <div className="rounded-lg border border-border p-4 space-y-2">
+            <h3 className="font-medium">Account</h3>
+            <p>
+              Moderation status:{" "}
+              <StatusBadge status={u.accountStatus || "active"} />
             </p>
+            <p className="text-muted-foreground">
+              Internal strikes: {data.stats.strikes} (not shown on public profile)
+            </p>
+            {u.suspensionUntil ? (
+              <p className="text-muted-foreground">
+                Suspension until {new Date(String(u.suspensionUntil)).toLocaleString()}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="rounded-lg border border-border p-4 space-y-2">
+            <h3 className="font-medium">App</h3>
+            <p>
+              Status: <AppStatusBadge appStatus={data.appStatus} />
+            </p>
+            <p className="text-muted-foreground">
+              Last app open:{" "}
+              {data.appStatus?.lastAppOpenAt
+                ? formatDistanceToNow(new Date(data.appStatus.lastAppOpenAt), {
+                    addSuffix: true,
+                  })
+                : "—"}
+            </p>
+            <p className="text-muted-foreground">
+              Last heartbeat:{" "}
+              {data.appStatus?.lastHeartbeatAt
+                ? formatDistanceToNow(new Date(data.appStatus.lastHeartbeatAt), {
+                    addSuffix: true,
+                  })
+                : "—"}
+            </p>
+            <p className="text-muted-foreground">
+              Devices: {data.appStatus?.deviceCount ?? 0} registered (
+              {data.appStatus?.activeDeviceCount ?? 0} active)
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-border p-4 space-y-2">
+            <h3 className="font-medium">Push notifications</h3>
+            <p>
+              Token status:{" "}
+              <StatusBadge
+                status={data.appStatus?.pushTokenStatus || "unknown"}
+                label={
+                  data.appStatus?.pushTokenStatus === "valid"
+                    ? "Valid"
+                    : data.appStatus?.pushTokenStatus === "invalid"
+                      ? "Invalid"
+                      : "Unknown"
+                }
+              />
+            </p>
+            <p className="text-muted-foreground">
+              Last push success:{" "}
+              {data.appStatus?.lastPushSuccessAt
+                ? new Date(data.appStatus.lastPushSuccessAt).toLocaleString()
+                : "—"}
+            </p>
+            <p className="text-muted-foreground">
+              Last push failure:{" "}
+              {data.appStatus?.lastPushFailureAt
+                ? new Date(data.appStatus.lastPushFailureAt).toLocaleString()
+                : "—"}
+            </p>
+            <p className="text-muted-foreground">
+              Uninstall likelihood:{" "}
+              <StatusBadge status={data.appStatus?.uninstallLikelihood || "unknown"} />
+            </p>
+          </div>
+
+          {(data.devices?.length ?? 0) > 0 ? (
+            <div className="rounded-lg border border-border p-4 space-y-3">
+              <h3 className="font-medium">Devices</h3>
+              {data.devices?.map((device) => (
+                <div
+                  key={device.deviceId}
+                  className="rounded-md border border-border/60 p-3 text-xs space-y-1"
+                >
+                  <p className="font-medium">
+                    {device.manufacturer || device.platform || "Device"}{" "}
+                    {device.model || device.deviceName || device.deviceId}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {device.platform} · app {device.appVersion || "—"} · OS{" "}
+                    {device.osVersion || "—"}
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <StatusBadge
+                      status={device.pushTokenStatus || "unknown"}
+                      label={`Push ${device.pushTokenStatus || "unknown"}`}
+                    />
+                    <StatusBadge
+                      status={device.uninstallLikelihood || "unknown"}
+                      label={`Uninstall ${device.uninstallLikelihood || "unknown"}`}
+                    />
+                    {!device.active ? (
+                      <StatusBadge status="inactive" label="Inactive" />
+                    ) : null}
+                  </div>
+                  <p className="text-muted-foreground">
+                    Last active:{" "}
+                    {device.lastAppOpenAt || device.lastHeartbeatAt || device.lastSeenAt
+                      ? formatDistanceToNow(
+                          new Date(
+                            device.lastAppOpenAt ||
+                              device.lastHeartbeatAt ||
+                              device.lastSeenAt ||
+                              "",
+                          ),
+                          { addSuffix: true },
+                        )
+                      : "—"}
+                  </p>
+                  {device.uninstallEvidence && device.uninstallEvidence !== "none" ? (
+                    <p className="text-muted-foreground">
+                      Evidence: {device.uninstallEvidence.replace(/_/g, " ")}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
           ) : null}
+
           <p className="text-muted-foreground">Clerk ID: {u.clerkId}</p>
         </TabsContent>
 

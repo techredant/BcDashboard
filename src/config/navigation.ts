@@ -53,6 +53,7 @@ export const navSections: NavSection[] = [
         url: "/verification",
         icon: ShieldCheck,
         description: "Review badge applications",
+        permission: "manage_verification",
       },
     ],
   },

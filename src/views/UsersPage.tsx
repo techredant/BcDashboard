@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, MapPin, UserPlus, Users } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { PageHeader } from "@/components/PageHeader";
 import { PageLoading } from "@/components/PageLoading";
 import { SearchInput } from "@/components/SearchInput";
+import { AppStatusBadge } from "@/components/AppStatusBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatCard } from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
@@ -53,6 +55,16 @@ type AdminUser = {
   warningCount?: number;
   strikeCount?: number;
   locationComplete?: boolean;
+  appStatus?: {
+    status?: string;
+    label?: string;
+    lastAppOpenAt?: string | null;
+    lastHeartbeatAt?: string | null;
+    pushTokenStatus?: string;
+    deviceCount?: number;
+    activeDeviceCount?: number;
+    uninstallLikelihood?: string;
+  };
 };
 
 type UserCounts = {
@@ -69,6 +81,9 @@ export default function UsersPage() {
   const [status, setStatus] = useState("all");
   const [verified, setVerified] = useState("all");
   const [onboarding, setOnboarding] = useState<OnboardingFilter>("all");
+  const [appStatusFilter, setAppStatusFilter] = useState("all");
+  const [pushStatusFilter, setPushStatusFilter] = useState("all");
+  const [lastActiveFilter, setLastActiveFilter] = useState("all");
   const [sortBy, setSortBy] = useState("createdAt");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -103,6 +118,9 @@ export default function UsersPage() {
       if (status !== "all") params.set("status", status);
       if (verified !== "all") params.set("verified", verified);
       if (onboarding !== "all") params.set("onboarding", onboarding);
+      if (appStatusFilter !== "all") params.set("appStatus", appStatusFilter);
+      if (pushStatusFilter !== "all") params.set("pushStatus", pushStatusFilter);
+      if (lastActiveFilter !== "all") params.set("lastActive", lastActiveFilter);
 
       const data = await adminGet<{
         items: AdminUser[];
@@ -128,7 +146,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedQ, status, verified, sortBy, onboarding]);
+  }, [page, debouncedQ, status, verified, sortBy, onboarding, appStatusFilter, pushStatusFilter, lastActiveFilter]);
 
   useEffect(() => {
     fetchUsers();
@@ -136,7 +154,19 @@ export default function UsersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQ, status, verified, sortBy, onboarding]);
+  }, [debouncedQ, status, verified, sortBy, onboarding, appStatusFilter, pushStatusFilter, lastActiveFilter]);
+
+  const appLastActiveAt = (u: AdminUser) =>
+    u.appStatus?.lastAppOpenAt || u.appStatus?.lastHeartbeatAt || null;
+
+  const formatRelativeActive = (iso: string | null | undefined) => {
+    if (!iso) return "—";
+    try {
+      return formatDistanceToNow(new Date(iso), { addSuffix: true });
+    } catch {
+      return "—";
+    }
+  };
 
   const displayName = (u: AdminUser) =>
     u.nickName ||
@@ -273,6 +303,41 @@ export default function UsersPage() {
           </select>
           <select
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            value={appStatusFilter}
+            onChange={(e) => setAppStatusFilter(e.target.value)}
+          >
+            <option value="all">App status</option>
+            <option value="active">Installed / Active</option>
+            <option value="recent">Recently active</option>
+            <option value="inactive">Inactive</option>
+            <option value="push_invalid">Push invalid</option>
+            <option value="uninstall_likely">Uninstall likely</option>
+            <option value="unknown">Unknown</option>
+          </select>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            value={pushStatusFilter}
+            onChange={(e) => setPushStatusFilter(e.target.value)}
+          >
+            <option value="all">Push status</option>
+            <option value="valid">Valid</option>
+            <option value="invalid">Invalid</option>
+            <option value="unknown">Unknown</option>
+          </select>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            value={lastActiveFilter}
+            onChange={(e) => setLastActiveFilter(e.target.value)}
+          >
+            <option value="all">Last active</option>
+            <option value="today">Today</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="30d_plus">30+ days ago</option>
+            <option value="never">Never</option>
+          </select>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
           >
@@ -309,10 +374,13 @@ export default function UsersPage() {
             <thead>
               <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-3 font-medium">User</th>
-                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Account</th>
+                <th className="px-4 py-3 font-medium">App status</th>
+                <th className="px-4 py-3 font-medium">Push</th>
+                <th className="px-4 py-3 font-medium">Last active</th>
+                <th className="px-4 py-3 font-medium">Devices</th>
                 <th className="px-4 py-3 font-medium">Location</th>
                 <th className="px-4 py-3 font-medium">Joined</th>
-                <th className="px-4 py-3 font-medium">Last active</th>
                 <th className="px-4 py-3 font-medium">Strikes</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
@@ -368,6 +436,29 @@ export default function UsersPage() {
                     <td className="px-4 py-3">
                       <StatusBadge status={u.accountStatus || "active"} />
                     </td>
+                    <td className="px-4 py-3">
+                      <AppStatusBadge appStatus={u.appStatus} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge
+                        status={u.appStatus?.pushTokenStatus || "unknown"}
+                        label={
+                          u.appStatus?.pushTokenStatus === "valid"
+                            ? "Valid"
+                            : u.appStatus?.pushTokenStatus === "invalid"
+                              ? "Invalid"
+                              : "Unknown"
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {formatRelativeActive(appLastActiveAt(u))}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex min-w-[1.5rem] justify-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
+                        {u.appStatus?.deviceCount ?? 0}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {isLocated(u) ? (
                         locationLabel(u)
@@ -380,11 +471,6 @@ export default function UsersPage() {
                     <td className="px-4 py-3 text-muted-foreground">
                       {u.createdAt
                         ? new Date(u.createdAt).toLocaleDateString()
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {u.lastActiveAt
-                        ? new Date(u.lastActiveAt).toLocaleString()
                         : "—"}
                     </td>
                     <td className="px-4 py-3">

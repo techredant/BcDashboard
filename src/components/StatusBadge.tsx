@@ -42,16 +42,28 @@ const STATUS_STYLES: Record<string, string> = {
   not_eligible: "bg-muted text-muted-foreground",
   rejected: "bg-red-500/15 text-red-700 dark:text-red-400",
   appealed: "bg-violet-500/15 text-violet-700 dark:text-violet-400",
+  recent: "bg-sky-500/15 text-sky-800 dark:text-sky-400",
+  push_invalid: "bg-orange-500/15 text-orange-800 dark:text-orange-400",
+  uninstall_likely: "bg-red-500/15 text-red-700 dark:text-red-400",
+  valid: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+  invalid: "bg-red-500/15 text-red-700 dark:text-red-400",
+  unknown: "bg-muted text-muted-foreground",
+  unlikely: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+  possible: "bg-amber-500/15 text-amber-800 dark:text-amber-400",
+  likely: "bg-red-500/15 text-red-700 dark:text-red-400",
 };
 
 export function StatusBadge({
   status,
+  label,
   className,
 }: {
   status: string;
+  label?: string;
   className?: string;
 }) {
   const key = String(status || "inactive").toLowerCase();
+  const display = label || key.replace(/_/g, " ");
   return (
     <span
       className={cn(
@@ -60,7 +72,7 @@ export function StatusBadge({
         className,
       )}
     >
-      {key.replace(/_/g, " ")}
+      {display}
     </span>
   );
 }
