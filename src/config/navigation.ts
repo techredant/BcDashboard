@@ -15,6 +15,7 @@ import {
   Gavel,
   CircleDot,
   Command,
+  CreditCard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,6 +54,25 @@ export const navSections: NavSection[] = [
         url: "/verification",
         icon: ShieldCheck,
         description: "Review badge applications",
+        permission: "manage_verification",
+      },
+    ],
+  },
+  {
+    label: "Settings",
+    items: [
+      {
+        title: "Payment Methods",
+        url: "/settings/payments/verification-methods",
+        icon: CreditCard,
+        description: "Country payment method configuration",
+        permission: "configure_payments",
+      },
+      {
+        title: "Verification Revenue",
+        url: "/settings/payments/revenue",
+        icon: CreditCard,
+        description: "Verification payment analytics",
         permission: "manage_verification",
       },
     ],
@@ -101,6 +121,13 @@ export const navSections: NavSection[] = [
         icon: Gavel,
         description: "Configure strike enforcement",
         permission: "configure_strikes",
+      },
+      {
+        title: "Safety Policy",
+        url: "/moderation/policy",
+        icon: ShieldCheck,
+        description: "AI risk thresholds and category rules",
+        permission: "moderate_content",
       },
       {
         title: "Audit Logs",

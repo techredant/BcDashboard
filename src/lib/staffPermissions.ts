@@ -16,6 +16,7 @@ export const STAFF_PERMISSIONS = {
   CONFIGURE_STRIKES: "configure_strikes",
   ASSIGN_ROLES: "assign_roles",
   MANAGE_VERIFICATION: "manage_verification",
+  CONFIGURE_PAYMENTS: "configure_payments",
 } as const;
 
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -52,6 +53,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     STAFF_PERMISSIONS.RESTORE_USER,
     STAFF_PERMISSIONS.MANAGE_APPEALS,
     STAFF_PERMISSIONS.MANAGE_VERIFICATION,
+    STAFF_PERMISSIONS.CONFIGURE_PAYMENTS,
   ],
   super_admin: Object.values(STAFF_PERMISSIONS),
 };

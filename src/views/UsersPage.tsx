@@ -20,6 +20,7 @@ import {
 } from "@/components/UserActionDialog";
 import { adminGet } from "@/lib/adminClient";
 import { useStaffAuth } from "@/lib/staffAuth";
+import { UserStaffRoleSelect } from "@/components/UserStaffRoleSelect";
 import { cn } from "@/lib/utils";
 
 type OnboardingFilter = "all" | "located" | "signup_only";
@@ -46,6 +47,7 @@ type AdminUser = {
   isVerified?: boolean;
   accountStatus?: string;
   accountType?: string;
+  role?: string;
   country?: string;
   county?: string;
   constituency?: string;
@@ -201,6 +203,7 @@ export default function UsersPage() {
   const canRestore = hasPermission("restore_user");
   const canRestrict = hasPermission("restrict_user");
   const canSuspend = hasPermission("suspend_user");
+  const canAssignRoles = hasPermission("assign_roles");
   const showRowActions = canWarn || canRestore || canRestrict || canSuspend;
 
   return (
@@ -375,6 +378,9 @@ export default function UsersPage() {
               <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-3 font-medium">User</th>
                 <th className="px-4 py-3 font-medium">Account</th>
+                {canAssignRoles ? (
+                  <th className="px-4 py-3 font-medium">Access level</th>
+                ) : null}
                 <th className="px-4 py-3 font-medium">App status</th>
                 <th className="px-4 py-3 font-medium">Push</th>
                 <th className="px-4 py-3 font-medium">Last active</th>
@@ -436,6 +442,24 @@ export default function UsersPage() {
                     <td className="px-4 py-3">
                       <StatusBadge status={u.accountStatus || "active"} />
                     </td>
+                    {canAssignRoles ? (
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <UserStaffRoleSelect
+                          userId={u.clerkId}
+                          role={u.role}
+                          className="h-8 w-[9.5rem] text-xs"
+                          onUpdated={(nextRole) => {
+                            setItems((prev) =>
+                              prev.map((row) =>
+                                row.clerkId === u.clerkId
+                                  ? { ...row, role: nextRole }
+                                  : row,
+                              ),
+                            );
+                          }}
+                        />
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3">
                       <AppStatusBadge appStatus={u.appStatus} />
                     </td>

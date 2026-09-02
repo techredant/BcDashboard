@@ -49,9 +49,25 @@ export default function LivestreamsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailStream>(null);
 
+  const [incidents, setIncidents] = useState<
+    Array<{ incidentId: string; callId?: string; contentId?: string; priority?: string; status?: string }>
+  >([]);
+
+  const loadIncidents = useCallback(async () => {
+    try {
+      const data = await adminGet<{ items: typeof incidents }>(
+        "/api/admin/moderation/incidents?type=livestream&limit=10",
+      );
+      setIncidents(data.items || []);
+    } catch {
+      setIncidents([]);
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      void loadIncidents();
       const qs = new URLSearchParams({
         type: "livestreams",
         page: String(page),
@@ -69,7 +85,7 @@ export default function LivestreamsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, loadIncidents]);
 
   useEffect(() => {
     load();
@@ -155,6 +171,19 @@ export default function LivestreamsPage() {
         title="Livestreams"
         description="Monitor, open, end, and moderate live broadcasts"
       />
+
+      {incidents.length > 0 ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+          <h3 className="text-sm font-medium mb-2">Active livestream incidents</h3>
+          <ul className="text-sm space-y-1">
+            {incidents.map((inc) => (
+              <li key={inc.incidentId}>
+                {inc.priority} — {inc.contentId || inc.incidentId} ({inc.status})
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard

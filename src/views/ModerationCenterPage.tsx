@@ -25,6 +25,14 @@ type Counts = {
   appealsPending: number;
   failedJobs: number;
   recentlyBlocked: number;
+  pending?: number;
+  approved?: number;
+  rejected?: number;
+  blocked?: number;
+  critical?: number;
+  livestreamIncidents?: number;
+  marketplaceIncidents?: number;
+  profileIncidents?: number;
 };
 
 type QueueRow = {
@@ -221,6 +229,10 @@ export default function ModerationCenterPage() {
     ? [
         { label: "Pending Review", value: counts.pendingReview, href: "/moderation/center" },
         { label: "AI Flagged", value: counts.aiFlagged, href: "/moderation" },
+        { label: "Pending Content", value: counts.pending ?? 0, href: "/content" },
+        { label: "Critical", value: counts.critical ?? 0, href: "/moderation/center" },
+        { label: "Rejected", value: counts.rejected ?? 0, href: "/content" },
+        { label: "Live Incidents", value: counts.livestreamIncidents ?? 0, href: "/livestreams" },
         { label: "User Reports", value: counts.userReports, href: "/reports" },
         { label: "Appeals", value: counts.appealsPending, href: "/appeals" },
         { label: "Failed Jobs", value: counts.failedJobs, href: "/moderation/center" },

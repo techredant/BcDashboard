@@ -25,6 +25,7 @@ import { adminGet, adminPatch } from "@/lib/adminClient";
 import { useStaffAuth } from "@/lib/staffAuth";
 import { EmptyState } from "@/components/EmptyState";
 import { ImageZoomDialog } from "@/components/ImageZoomDialog";
+import { UserStaffRoleSelect } from "@/components/UserStaffRoleSelect";
 import { toast } from "sonner";
 
 type ModerationRecord = {
@@ -56,6 +57,7 @@ type DetailResponse = {
     lastName?: string;
     image?: string;
     accountStatus?: string;
+    role?: string;
     isVerified?: boolean;
     createdAt?: string;
     warningCount?: number;
@@ -383,6 +385,34 @@ export default function UserDetailPage() {
               Moderation status:{" "}
               <StatusBadge status={u.accountStatus || "active"} />
             </p>
+            {hasPermission("assign_roles") ? (
+              <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">Staff access level</p>
+                  <p className="text-xs text-muted-foreground">
+                    Elevate or revoke dashboard permissions for this account.
+                  </p>
+                </div>
+                <UserStaffRoleSelect
+                  userId={u.clerkId}
+                  role={u.role}
+                  onUpdated={(nextRole) => {
+                    setData((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            user: { ...prev.user, role: nextRole },
+                          }
+                        : prev,
+                    );
+                  }}
+                />
+              </div>
+            ) : u.role && u.role !== "user" ? (
+              <p className="text-muted-foreground capitalize">
+                Staff access: {u.role.replace("_", " ")}
+              </p>
+            ) : null}
             <p className="text-muted-foreground">
               Internal strikes: {data.stats.strikes} (not shown on public profile)
             </p>
