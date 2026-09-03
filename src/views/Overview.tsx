@@ -140,7 +140,7 @@ export default function Overview() {
       <EmptyState
         icon={<Activity className="h-6 w-6 text-muted-foreground" />}
         title="Could not load dashboard"
-        subtitle="Nothing is listening at the API URL. Point NEXT_PUBLIC_API_URL at https://cast-api-zeta.vercel.app (or start the local backend on port 3000) and restart the dashboard."
+        subtitle="Nothing is listening at the API URL. Point NEXT_PUBLIC_API_URL at https://castapi-production.up.railway.app (or start the local backend on port 3000) and restart the dashboard."
       />
     );
   }

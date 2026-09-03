@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://cast-api-zeta.vercel.app";
+  process.env.NEXT_PUBLIC_API_URL || "https://castapi-production.up.railway.app";
 
 /** Public media CDN — must match backend `CLOUDFRONT_URL`. */
 export const MEDIA_CDN_URL = (

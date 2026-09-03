@@ -143,7 +143,7 @@ export default function UsersPage() {
       console.error(err);
       setItems([]);
       setLoadError(
-        "Could not load users. The dashboard API is unreachable — set NEXT_PUBLIC_API_URL to a running backend (or https://cast-api-zeta.vercel.app) and restart Next.",
+        "Could not load users. The dashboard API is unreachable — set NEXT_PUBLIC_API_URL to a running backend (or https://castapi-production.up.railway.app) and restart Next.",
       );
     } finally {
       setLoading(false);
