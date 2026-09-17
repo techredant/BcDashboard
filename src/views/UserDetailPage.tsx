@@ -26,6 +26,11 @@ import { useStaffAuth } from "@/lib/staffAuth";
 import { EmptyState } from "@/components/EmptyState";
 import { ImageZoomDialog } from "@/components/ImageZoomDialog";
 import { UserStaffRoleSelect } from "@/components/UserStaffRoleSelect";
+import {
+  BroadcastVerificationBadge,
+  verificationFamilyLabel,
+  verificationFamily,
+} from "@/components/BroadcastVerificationBadge";
 import { toast } from "sonner";
 
 type ModerationRecord = {
@@ -59,6 +64,8 @@ type DetailResponse = {
     accountStatus?: string;
     role?: string;
     isVerified?: boolean;
+    verificationType?: string;
+    verificationBadge?: string;
     createdAt?: string;
     warningCount?: number;
     strikeCount?: number;
@@ -271,9 +278,21 @@ export default function UserDetailPage() {
             <p className="text-sm text-muted-foreground">
               @{u.nickName || "—"} · {u.email}
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <StatusBadge status={u.accountStatus || "active"} />
-              {u.isVerified ? <StatusBadge status="verified" /> : null}
+              {u.isVerified ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-xs">
+                  <BroadcastVerificationBadge
+                    isVerified
+                    verificationType={u.verificationType}
+                    verificationBadge={u.verificationBadge}
+                    size={14}
+                  />
+                  {verificationFamilyLabel(
+                    verificationFamily(u.verificationBadge || u.verificationType),
+                  )}
+                </span>
+              ) : null}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
               Joined{" "}

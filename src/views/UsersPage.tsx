@@ -21,6 +21,7 @@ import {
 import { adminGet } from "@/lib/adminClient";
 import { useStaffAuth } from "@/lib/staffAuth";
 import { UserStaffRoleSelect } from "@/components/UserStaffRoleSelect";
+import { BroadcastVerificationBadge } from "@/components/BroadcastVerificationBadge";
 import { cn } from "@/lib/utils";
 
 type OnboardingFilter = "all" | "located" | "signup_only";
@@ -45,6 +46,8 @@ type AdminUser = {
   companyName?: string;
   image?: string;
   isVerified?: boolean;
+  verificationType?: string;
+  verificationBadge?: string;
   accountStatus?: string;
   accountType?: string;
   role?: string;
@@ -82,6 +85,8 @@ export default function UsersPage() {
   const [debouncedQ, setDebouncedQ] = useState("");
   const [status, setStatus] = useState("all");
   const [verified, setVerified] = useState("all");
+  const [country, setCountry] = useState("all");
+  const [countries, setCountries] = useState<string[]>([]);
   const [onboarding, setOnboarding] = useState<OnboardingFilter>("all");
   const [appStatusFilter, setAppStatusFilter] = useState("all");
   const [pushStatusFilter, setPushStatusFilter] = useState("all");
@@ -119,6 +124,7 @@ export default function UsersPage() {
       if (debouncedQ) params.set("q", debouncedQ);
       if (status !== "all") params.set("status", status);
       if (verified !== "all") params.set("verified", verified);
+      if (country !== "all") params.set("country", country);
       if (onboarding !== "all") params.set("onboarding", onboarding);
       if (appStatusFilter !== "all") params.set("appStatus", appStatusFilter);
       if (pushStatusFilter !== "all") params.set("pushStatus", pushStatusFilter);
@@ -129,11 +135,13 @@ export default function UsersPage() {
         totalPages: number;
         total: number;
         counts?: UserCounts;
+        countries?: string[];
       }>(`/api/admin/users?${params}`);
       setLoadError("");
       setItems(data.items || []);
       setTotalPages(data.totalPages || 1);
       setTotal(data.total || 0);
+      setCountries(data.countries || []);
       setCounts({
         all: data.counts?.all ?? data.total ?? 0,
         withLocation: data.counts?.withLocation ?? 0,
@@ -148,7 +156,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedQ, status, verified, sortBy, onboarding, appStatusFilter, pushStatusFilter, lastActiveFilter]);
+  }, [page, debouncedQ, status, verified, country, sortBy, onboarding, appStatusFilter, pushStatusFilter, lastActiveFilter]);
 
   useEffect(() => {
     fetchUsers();
@@ -156,7 +164,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQ, status, verified, sortBy, onboarding, appStatusFilter, pushStatusFilter, lastActiveFilter]);
+  }, [debouncedQ, status, verified, country, sortBy, onboarding, appStatusFilter, pushStatusFilter, lastActiveFilter]);
 
   const appLastActiveAt = (u: AdminUser) =>
     u.appStatus?.lastAppOpenAt || u.appStatus?.lastHeartbeatAt || null;
@@ -306,6 +314,21 @@ export default function UsersPage() {
           </select>
           <select
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+          >
+            <option value="all">All countries</option>
+            {country !== "all" && !countries.includes(country) ? (
+              <option value={country}>{country}</option>
+            ) : null}
+            {countries.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             value={appStatusFilter}
             onChange={(e) => setAppStatusFilter(e.target.value)}
           >
@@ -432,7 +455,13 @@ export default function UsersPage() {
                             {u.email}
                           </p>
                           {u.isVerified ? (
-                            <span className="text-[10px] text-emerald-600">
+                            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                              <BroadcastVerificationBadge
+                                isVerified
+                                verificationType={u.verificationType}
+                                verificationBadge={u.verificationBadge}
+                                size={12}
+                              />
                               Verified
                             </span>
                           ) : null}

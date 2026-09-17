@@ -17,6 +17,7 @@ export const STAFF_PERMISSIONS = {
   ASSIGN_ROLES: "assign_roles",
   MANAGE_VERIFICATION: "manage_verification",
   CONFIGURE_PAYMENTS: "configure_payments",
+  MANAGE_NEWS: "manage_news",
 } as const;
 
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -54,6 +55,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     STAFF_PERMISSIONS.MANAGE_APPEALS,
     STAFF_PERMISSIONS.MANAGE_VERIFICATION,
     STAFF_PERMISSIONS.CONFIGURE_PAYMENTS,
+    STAFF_PERMISSIONS.MANAGE_NEWS,
   ],
   super_admin: Object.values(STAFF_PERMISSIONS),
 };

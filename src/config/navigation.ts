@@ -56,6 +56,13 @@ export const navSections: NavSection[] = [
         description: "Review badge applications",
         permission: "manage_verification",
       },
+      {
+        title: "Verification payments",
+        url: "/verification/payments",
+        icon: Landmark,
+        description: "Review I&M Bank verification payments",
+        permission: "manage_verification",
+      },
     ],
   },
   {
@@ -159,6 +166,13 @@ export const navSections: NavSection[] = [
         icon: CircleDot,
         description: "Status updates moderation",
         permission: "view_cases",
+      },
+      {
+        title: "News",
+        url: "/news",
+        icon: Newspaper,
+        description: "Sources, clusters, and scoring",
+        permission: "manage_news",
       },
       {
         title: "Trends",

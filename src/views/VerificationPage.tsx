@@ -20,6 +20,11 @@ import { EmptyState } from "@/components/EmptyState";
 import { StatCard } from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
 import { useStaffAuth } from "@/lib/staffAuth";
+import {
+  BroadcastVerificationBadge,
+  verificationFamilyLabel,
+  verificationFamily,
+} from "@/components/BroadcastVerificationBadge";
 
 type VerificationRequest = {
   _id: string;
@@ -373,7 +378,8 @@ export default function VerificationPage() {
                     {["payment_received", "pending_review"].includes(detail.request.status) && (
                       <Button size="sm" variant="outline" onClick={() => startReview(detail.request._id)}>Start review</Button>
                     )}
-                    {["payment_received", "under_review", "more_information_required", "pending_review"].includes(detail.request.status) && (
+                    {["payment_received", "under_review", "more_information_required", "pending_review"].includes(detail.request.status) &&
+                      ["payment_verified", "paid"].includes(detail.request.paymentStatus || "") && (
                       <Button size="sm" onClick={() => approve(detail.request._id)}>Approve</Button>
                     )}
                     <select className="border rounded px-2 py-1 text-sm" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}>
@@ -406,9 +412,18 @@ export default function VerificationPage() {
             <div key={u.clerkId} className="bg-card border rounded-xl p-5 flex justify-between items-center gap-3">
               <div>
                 <p className="font-semibold flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-blue-500" />
+                  <BroadcastVerificationBadge
+                    isVerified
+                    verificationType={u.verificationType}
+                    verificationBadge={u.verificationBadge}
+                    size={18}
+                  />
                   {u.firstName} {u.lastName}
-                  <span className="text-xs capitalize text-muted-foreground">({u.verificationBadge || u.verificationType})</span>
+                  <span className="text-xs text-muted-foreground">
+                    ({verificationFamilyLabel(
+                      verificationFamily(u.verificationBadge || u.verificationType),
+                    )})
+                  </span>
                 </p>
                 <p className="text-sm text-muted-foreground">@{u.nickName} · {u.email}</p>
                 <p className="text-xs text-muted-foreground mt-1">

@@ -17,6 +17,7 @@ type CountryConfig = {
   methods: {
     card: { enabled: boolean; provider: string };
     mpesa: { enabled: boolean; provider: string };
+    im_bank?: { enabled: boolean; provider: string };
   };
   limits?: { minAmount: number; maxAmount: number };
 };
@@ -24,6 +25,7 @@ type CountryConfig = {
 type ProviderHealth = {
   stripe: { status: string; ok?: boolean };
   mpesa: { status: string; ok?: boolean };
+  im_bank?: { status: string; ok?: boolean };
 };
 
 export default function VerificationPaymentMethodsPage() {
@@ -88,7 +90,7 @@ export default function VerificationPaymentMethodsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Verification payment methods"
-        description="Configure card and M-Pesa availability by country. Methods require a connected backend provider."
+        description="Configure I&M Bank, card, and M-Pesa availability by country. Kenya verification uses I&M PayBill instructions until a bank API is added."
       />
 
       {providers && (
@@ -115,6 +117,18 @@ export default function VerificationPaymentMethodsPage() {
               }
             >
               {providers.mpesa.status}
+            </span>
+          </div>
+          <div>
+            <span className="font-medium">I&M Bank: </span>
+            <span
+              className={
+                providers.im_bank?.status === "CONNECTED"
+                  ? "text-green-600"
+                  : "text-amber-600"
+              }
+            >
+              {providers.im_bank?.status || "NOT_CONFIGURED"}
             </span>
           </div>
         </div>
@@ -150,6 +164,24 @@ export default function VerificationPaymentMethodsPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-6">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={Boolean(country.methods.im_bank?.enabled)}
+                  disabled={!canEdit || providers?.im_bank?.status !== "CONNECTED"}
+                  onCheckedChange={(enabled) =>
+                    updateCountry(country.countryCode, {
+                      methods: {
+                        ...country.methods,
+                        im_bank: {
+                          enabled,
+                          provider: "im_bank",
+                        },
+                      },
+                    })
+                  }
+                />
+                <Label>I&M Bank</Label>
+              </div>
               <div className="flex items-center gap-2">
                 <Switch
                   checked={country.methods.card.enabled}
